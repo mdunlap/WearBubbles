@@ -186,6 +186,14 @@ WearBubbles uses the following BlueBubbles REST endpoints:
 
 Real-time events are received over Socket.IO: `new-message`, `updated-message`, `typing-indicator`.
 
+## Tested With
+
+| Component | Version |
+|---|---|
+| BlueBubbles Server | 1.9.1 |
+| Wear OS | 5 (Android 14, Pixel Watch 4) |
+| Phone | Android 14 (Galaxy Z Fold 6) |
+
 ## Configuration
 
 All configuration is done on-device through the setup screen or the phone companion app. Credentials are stored locally using Android DataStore (watch) and SharedPreferences (phone) and never leave your devices.
