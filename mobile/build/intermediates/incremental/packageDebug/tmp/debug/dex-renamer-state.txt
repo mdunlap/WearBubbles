@@ -1,0 +1,16 @@
+#Tue Feb 24 14:37:48 EST 2026
+path.4=classes2.dex
+path.3=7/classes.dex
+path.2=2/classes.dex
+path.1=0/classes.dex
+path.0=classes.dex
+base.4=/Users/max/WearBubbles/mobile/build/intermediates/dex/debug/mergeExtDexDebug/classes2.dex
+base.3=/Users/max/WearBubbles/mobile/build/intermediates/dex/debug/mergeProjectDexDebug/7/classes.dex
+base.2=/Users/max/WearBubbles/mobile/build/intermediates/dex/debug/mergeProjectDexDebug/2/classes.dex
+base.1=/Users/max/WearBubbles/mobile/build/intermediates/dex/debug/mergeProjectDexDebug/0/classes.dex
+base.0=/Users/max/WearBubbles/mobile/build/intermediates/dex/debug/mergeExtDexDebug/classes.dex
+renamed.3=classes4.dex
+renamed.2=classes3.dex
+renamed.1=classes2.dex
+renamed.0=classes.dex
+renamed.4=classes5.dex
