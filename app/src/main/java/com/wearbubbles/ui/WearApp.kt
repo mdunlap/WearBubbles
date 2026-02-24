@@ -3,15 +3,17 @@ package com.wearbubbles.ui
 import android.util.Base64
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.wear.compose.material.Scaffold
-import androidx.wear.compose.material.TimeText
 import androidx.wear.compose.navigation.SwipeDismissableNavHost
 import androidx.wear.compose.navigation.composable
 import androidx.wear.compose.navigation.rememberSwipeDismissableNavController
+import com.google.android.horologist.compose.layout.AppScaffold
 import com.wearbubbles.ui.conversations.ConversationListScreen
 import com.wearbubbles.ui.conversations.ConversationListViewModel
 import com.wearbubbles.ui.messages.MessageDetailScreen
+import com.wearbubbles.ui.messages.NewMessageScreen
+import com.wearbubbles.ui.settings.SettingsScreen
 import com.wearbubbles.ui.setup.SetupScreen
 import com.wearbubbles.ui.theme.WearBubblesTheme
 
@@ -24,9 +26,7 @@ private fun decodeGuid(encoded: String): String =
 @Composable
 fun WearApp(hasCredentials: Boolean) {
     WearBubblesTheme {
-        Scaffold(
-            timeText = { TimeText() }
-        ) {
+        AppScaffold {
             val navController = rememberSwipeDismissableNavController()
             val startDestination = if (hasCredentials) "conversations" else "setup"
 
@@ -54,9 +54,34 @@ fun WearApp(hasCredentials: Boolean) {
                             navController.navigate("messages/$encoded")
                         },
                         onSettingsClick = {
-                            navController.navigate("setup")
+                            navController.navigate("settings")
+                        },
+                        onNewMessageClick = {
+                            navController.navigate("new_message")
                         },
                         viewModel = conversationListViewModel
+                    )
+                }
+
+                composable("settings") {
+                    SettingsScreen(
+                        onReset = {
+                            navController.navigate("setup") {
+                                popUpTo(0)
+                            }
+                        }
+                    )
+                }
+
+                composable("new_message") {
+                    NewMessageScreen(
+                        onRecipientSelected = { address ->
+                            val chatGuid = "iMessage;-;$address"
+                            val encoded = encodeGuid(chatGuid)
+                            navController.navigate("messages/$encoded") {
+                                popUpTo("new_message") { inclusive = true }
+                            }
+                        }
                     )
                 }
 
@@ -68,7 +93,7 @@ fun WearApp(hasCredentials: Boolean) {
                         encodedGuid
                     }
 
-                    val chats by conversationListViewModel.uiState.collectAsState()
+                    val chats by conversationListViewModel.uiState.collectAsStateWithLifecycle()
                     val chatName = chats.chats.find { it.guid == chatGuid }?.displayName ?: chatGuid
 
                     MessageDetailScreen(

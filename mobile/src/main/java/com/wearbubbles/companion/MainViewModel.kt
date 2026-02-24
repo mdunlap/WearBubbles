@@ -13,6 +13,14 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
+data class WatchStatus(
+    val serverConnected: Boolean = false,
+    val serverUrl: String = "",
+    val totalConversations: Int = 0,
+    val unreadConversations: Int = 0,
+    val lastMessageTime: Long? = null,
+)
+
 data class UiState(
     val url: String = "",
     val password: String = "",
@@ -20,6 +28,7 @@ data class UiState(
     val watchNodeId: String? = null,
     val sendStatus: SendStatus = SendStatus.Idle,
     val isSynced: Boolean = false,
+    val watchStatus: WatchStatus? = null,
 )
 
 enum class SendStatus {
@@ -45,6 +54,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application),
     init {
         messageClient.addListener(this)
         refreshWatchConnection()
+        requestStatus()
     }
 
     override fun onCleared() {
@@ -60,6 +70,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application),
                     watchNodeName = watch?.displayName,
                     watchNodeId = watch?.id,
                 )
+                if (watch != null) requestStatus()
             } catch (_: Exception) {
                 _state.value = _state.value.copy(watchNodeName = null, watchNodeId = null)
             }
@@ -116,6 +127,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application),
         }
     }
 
+    fun requestStatus() {
+        val nodeId = _state.value.watchNodeId ?: return
+        viewModelScope.launch {
+            try {
+                messageClient.sendMessage(nodeId, "/request-status", ByteArray(0)).await()
+            } catch (_: Exception) {
+                // Watch may not be reachable
+            }
+        }
+    }
+
     fun clearLocalData() {
         prefs.edit().clear().apply()
         _state.value = UiState(
@@ -135,11 +157,29 @@ class MainViewModel(application: Application) : AndroidViewModel(application),
                         sendStatus = if (ok) SendStatus.AckOk else SendStatus.AckError,
                         isSynced = ok,
                     )
-                    if (ok) prefs.edit().putBoolean("synced", true).apply()
+                    if (ok) {
+                        prefs.edit().putBoolean("synced", true).apply()
+                        requestStatus()
+                    }
                 }
                 "/reset-ack" -> {
-                    _state.value = _state.value.copy(sendStatus = SendStatus.ResetOk, isSynced = false)
+                    _state.value = _state.value.copy(sendStatus = SendStatus.ResetOk, isSynced = false, watchStatus = null)
                     prefs.edit().putBoolean("synced", false).apply()
+                }
+                "/watch-status" -> {
+                    try {
+                        val json = String(event.data)
+                        val map = Gson().fromJson(json, Map::class.java) as Map<*, *>
+                        _state.value = _state.value.copy(
+                            watchStatus = WatchStatus(
+                                serverConnected = map["serverConnected"] as? Boolean ?: false,
+                                serverUrl = map["serverUrl"] as? String ?: "",
+                                totalConversations = (map["totalConversations"] as? Double)?.toInt() ?: 0,
+                                unreadConversations = (map["unreadConversations"] as? Double)?.toInt() ?: 0,
+                                lastMessageTime = (map["lastMessageTime"] as? Double)?.toLong(),
+                            )
+                        )
+                    } catch (_: Exception) { }
                 }
             }
         }

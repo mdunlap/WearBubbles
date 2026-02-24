@@ -1,11 +1,13 @@
 package com.wearbubbles.data
 
+import android.content.Context
 import android.util.Log
 import com.wearbubbles.api.BlueBubblesApi
 import com.wearbubbles.api.dto.ChatDto
 import com.wearbubbles.api.dto.ChatQueryRequest
 import com.wearbubbles.db.ChatDao
 import com.wearbubbles.db.entities.ChatEntity
+import com.wearbubbles.notifications.NotificationHelper
 import com.wearbubbles.socket.SocketEvent
 import com.wearbubbles.socket.SocketManager
 import kotlinx.coroutines.CoroutineScope
@@ -14,6 +16,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 
 class ChatRepository(
+    private val context: Context,
     private val api: BlueBubblesApi,
     private val password: String,
     private val chatDao: ChatDao,
@@ -41,15 +44,30 @@ class ChatRepository(
                         if (existing != null) {
                             chatDao.upsertChat(
                                 existing.copy(
-                                    lastMessageText = event.message.text,
+                                    lastMessageText = event.message.text
+                                        ?: if (event.message.attachments?.isNotEmpty() == true) "Attachment" else null,
                                     lastMessageDate = event.message.dateCreated,
                                     lastMessageIsFromMe = event.message.isFromMe,
                                     hasUnreadMessage = !event.message.isFromMe
                                 )
                             )
                         } else {
-                            // New chat we haven't seen — refresh from API
                             refreshChats()
+                        }
+
+                        if (!event.message.isFromMe) {
+                            val address = event.message.handle?.address
+                            val senderName = if (address != null) {
+                                contactRepository.getDisplayNameSync(address)
+                            } else {
+                                "Unknown"
+                            }
+                            val messagePreview = event.message.text
+                                ?: if (event.message.attachments?.isNotEmpty() == true) "Attachment" else "New message"
+                            NotificationHelper.showNewMessageNotification(
+                                context, senderName, messagePreview, chatGuid
+                            )
+                            NotificationHelper.vibrateIfEnabled(context)
                         }
                     }
                     else -> {}
@@ -104,11 +122,12 @@ class ChatRepository(
         }
     }
 
-    suspend fun getDisplayName(chat: ChatEntity): String {
+    // Non-suspend: uses in-memory contact cache only — no DB round-trips
+    fun getDisplayNameSync(chat: ChatEntity): String {
         if (!chat.displayName.isNullOrBlank()) return chat.displayName
         val addresses = chat.participantAddresses?.split(",")?.map { it.trim() } ?: emptyList()
         return if (addresses.isNotEmpty()) {
-            contactRepository.getDisplayNameForAddresses(addresses)
+            contactRepository.getDisplayNameForAddressesSync(addresses)
         } else {
             chat.chatIdentifier ?: chat.guid
         }
@@ -121,7 +140,8 @@ class ChatRepository(
             chatIdentifier = chatIdentifier,
             displayName = displayName,
             participantAddresses = addresses,
-            lastMessageText = lastMessage?.text,
+            lastMessageText = lastMessage?.text
+                ?: if (lastMessage?.attachments?.isNotEmpty() == true) "Attachment" else null,
             lastMessageDate = lastMessage?.dateCreated,
             lastMessageIsFromMe = lastMessage?.isFromMe,
             hasUnreadMessage = hasUnreadMessage ?: false

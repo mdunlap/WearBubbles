@@ -100,6 +100,15 @@ data class SendMessageResponse(
     val data: MessageDto?
 )
 
+// -- React --
+
+data class ReactRequest(
+    val chatGuid: String,
+    val selectedMessageGuid: String,
+    val reaction: String = "love",
+    val partIndex: Int = 0
+)
+
 // -- Contacts --
 
 data class ContactResponse(

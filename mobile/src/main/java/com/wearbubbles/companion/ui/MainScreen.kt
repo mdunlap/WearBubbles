@@ -1,6 +1,8 @@
 package com.wearbubbles.companion.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -11,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -45,11 +48,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.wearbubbles.companion.MainViewModel
 import com.wearbubbles.companion.SendStatus
+import com.wearbubbles.companion.WatchStatus
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -120,6 +127,15 @@ fun MainScreen(viewModel: MainViewModel) {
                         )
                     }
                 }
+            }
+
+            // Watch status card
+            val watchStatus = state.watchStatus
+            if (watchStatus != null) {
+                WatchStatusCard(
+                    status = watchStatus,
+                    onRefresh = { viewModel.requestStatus() },
+                )
             }
 
             // Server credentials
@@ -214,19 +230,6 @@ fun MainScreen(viewModel: MainViewModel) {
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
             )
-
-            // Resend credentials
-            OutlinedButton(
-                onClick = { viewModel.sendToWatch() },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = state.url.isNotBlank() && state.password.isNotBlank()
-                        && state.watchNodeId != null
-                        && state.sendStatus != SendStatus.Sending,
-            ) {
-                Icon(Icons.Filled.Refresh, contentDescription = null)
-                Spacer(Modifier.width(8.dp))
-                Text("Resend Credentials to Watch")
-            }
 
             // Reset watch
             var confirmReset by remember { mutableStateOf(false) }
@@ -324,5 +327,98 @@ private fun StatusRow(
         Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(20.dp))
         Spacer(Modifier.width(8.dp))
         Text(text, color = color, style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
+@Composable
+private fun WatchStatusCard(status: WatchStatus, onRefresh: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+        ),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            // Header row with refresh
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                // Connection dot
+                Box(
+                    modifier = Modifier
+                        .size(12.dp)
+                        .clip(CircleShape)
+                        .background(if (status.serverConnected) Color(0xFF4CAF50) else Color(0xFFF44336)),
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = if (status.serverConnected) "BlueBubbles Connected" else "BlueBubbles Disconnected",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.weight(1f),
+                )
+                IconButton(onClick = onRefresh) {
+                    Icon(
+                        Icons.Filled.Refresh,
+                        contentDescription = "Refresh status",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
+            // Server URL
+            if (status.serverUrl.isNotBlank()) {
+                Text(
+                    text = status.serverUrl,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+
+            Divider(color = MaterialTheme.colorScheme.outlineVariant)
+
+            // Conversations
+            Text(
+                text = "${status.totalConversations} conversations" +
+                    if (status.unreadConversations > 0) " (${status.unreadConversations} unread)" else "",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+
+            // Last message time
+            val lastTime = status.lastMessageTime
+            if (lastTime != null && lastTime > 0) {
+                Text(
+                    text = "Last message: ${formatRelativeTime(lastTime)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+private fun formatRelativeTime(timestamp: Long): String {
+    val now = System.currentTimeMillis()
+    val diff = now - timestamp
+    if (diff < 0) return "just now"
+    val seconds = diff / 1000
+    val minutes = seconds / 60
+    val hours = minutes / 60
+    val days = hours / 24
+    return when {
+        seconds < 60 -> "just now"
+        minutes < 60 -> "${minutes}m ago"
+        hours < 24 -> "${hours}h ago"
+        days < 7 -> "${days}d ago"
+        else -> "${days / 7}w ago"
     }
 }

@@ -2,6 +2,24 @@
 
 All notable changes to WearBubbles will be documented in this file.
 
+## [0.2.0] - 2026-02-24
+
+### Watch app
+- EXIF rotation fix for photo attachments
+- Real-time notifications via Socket.IO (instant delivery, not 15-min polling)
+- Haptic feedback (double-tap vibration) on incoming messages
+- Settings screen with haptics toggle, server status, and watch reset
+- Heart react: long-press any message to send a love tapback
+- Attachment-only messages now show "Attachment" preview in conversation list
+- New message compose screen
+- Custom app icon
+
+### Phone companion app
+- Watch status dashboard (server connection, conversation count, unread count, last message time)
+- Release build signing for sideloading
+
+---
+
 ## [0.1.0] - 2026-02-24
 
 First pre-release.

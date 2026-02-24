@@ -1,0 +1,14 @@
+HSPLcom/wearbubbles/MainActivity;->onCreate(Landroid/os/Bundle;)V
+HSPLcom/wearbubbles/WearBubblesApp;->onCreate()V
+HSPLcom/wearbubbles/ui/WearAppKt;->WearApp(ZLandroidx/compose/runtime/Composer;I)V
+HSPLcom/wearbubbles/ui/conversations/ConversationListScreenKt;->ConversationListScreen(Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;Lcom/wearbubbles/ui/conversations/ConversationListViewModel;Landroidx/compose/runtime/Composer;II)V
+HSPLcom/wearbubbles/ui/messages/MessageDetailScreenKt;->MessageDetailScreen(Ljava/lang/String;Ljava/lang/String;Lcom/wearbubbles/socket/SocketManager;Lcom/wearbubbles/ui/messages/MessageDetailViewModel;Landroidx/compose/runtime/Composer;II)V
+HSPLcom/wearbubbles/ui/conversations/ConversationListViewModel;->initialize()V
+HSPLcom/wearbubbles/data/ChatRepository;-><init>(Lcom/wearbubbles/api/BlueBubblesApi;Ljava/lang/String;Lcom/wearbubbles/db/ChatDao;Lcom/wearbubbles/socket/SocketManager;Lcom/wearbubbles/data/ContactRepository;Lkotlinx/coroutines/CoroutineScope;)V
+HSPLcom/wearbubbles/data/ContactRepository;->loadFromCache()V
+HSPLcom/wearbubbles/db/AppDatabase;->getInstance(Landroid/content/Context;)Lcom/wearbubbles/db/AppDatabase;
+Landroidx/wear/compose/material/**;
+Landroidx/compose/foundation/**;
+Landroidx/compose/ui/**;
+Landroidx/compose/runtime/**;
+Lcom/google/android/horologist/compose/layout/**;

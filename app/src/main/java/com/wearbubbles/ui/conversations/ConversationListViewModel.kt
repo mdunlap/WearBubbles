@@ -1,8 +1,10 @@
 package com.wearbubbles.ui.conversations
 
 import android.app.Application
+import androidx.compose.runtime.Immutable
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.wearbubbles.WearBubblesApp
 import com.wearbubbles.api.ApiClient
 import com.wearbubbles.data.ChatRepository
 import com.wearbubbles.data.ContactRepository
@@ -13,6 +15,7 @@ import com.wearbubbles.socket.SocketManager
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
+@Immutable
 data class ChatUiItem(
     val guid: String,
     val displayName: String,
@@ -22,6 +25,7 @@ data class ChatUiItem(
     val hasUnread: Boolean
 )
 
+@Immutable
 data class ConversationListUiState(
     val chats: List<ChatUiItem> = emptyList(),
     val isLoading: Boolean = true,
@@ -34,10 +38,13 @@ class ConversationListViewModel(application: Application) : AndroidViewModel(app
 
     private val settingsDataStore = SettingsDataStore(application)
     private val db = AppDatabase.getInstance(application)
-    private val socketManager = SocketManager()
+    private val socketManager = (application as WearBubblesApp).socketManager
 
     private lateinit var chatRepository: ChatRepository
     private lateinit var contactRepository: ContactRepository
+
+    // Cached credentials for sync access
+    private var cachedPassword: String? = null
 
     private val _uiState = MutableStateFlow(ConversationListUiState())
     val uiState: StateFlow<ConversationListUiState> = _uiState.asStateFlow()
@@ -52,10 +59,12 @@ class ConversationListViewModel(application: Application) : AndroidViewModel(app
             try {
                 val serverUrl = settingsDataStore.getServerUrl()
                 val password = settingsDataStore.getPassword()
+                cachedPassword = password
                 val api = ApiClient.getInstance(serverUrl)
 
                 contactRepository = ContactRepository(api, password, db.contactDao())
                 chatRepository = ChatRepository(
+                    context = getApplication(),
                     api = api,
                     password = password,
                     chatDao = db.chatDao(),
@@ -64,16 +73,23 @@ class ConversationListViewModel(application: Application) : AndroidViewModel(app
                     scope = viewModelScope
                 )
 
-                // Load contacts and connect socket
+                // 1. Load contacts from Room cache (instant — covers repeat launches)
+                contactRepository.loadFromCache()
+
+                // 2. Load contacts from API (awaited — ensures names are ready before showing chats)
                 contactRepository.loadContacts()
+
+                // 3. Connect socket
                 socketManager.connect(serverUrl, password)
 
-                // Observe chats from Room
-                chatRepository.chats.collect { entities ->
-                    _uiState.value = _uiState.value.copy(
-                        chats = entities.map { it.toUiItem() },
-                        isLoading = false
-                    )
+                // 4. NOW observe chats — contacts are fully loaded, names will resolve correctly
+                launch {
+                    chatRepository.chats.collect { entities ->
+                        _uiState.value = _uiState.value.copy(
+                            chats = entities.map { it.toUiItem() },
+                            isLoading = false
+                        )
+                    }
                 }
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
@@ -115,15 +131,15 @@ class ConversationListViewModel(application: Application) : AndroidViewModel(app
     }
 
     fun getSocketManager(): SocketManager = socketManager
-    fun getPassword(): String? = runCatching {
-        kotlinx.coroutines.runBlocking { settingsDataStore.getPassword() }
-    }.getOrNull()
 
-    private suspend fun ChatEntity.toUiItem(): ChatUiItem {
+    fun getPassword(): String? = cachedPassword
+
+    // Non-suspend: uses in-memory contact cache — zero DB round-trips
+    private fun ChatEntity.toUiItem(): ChatUiItem {
         return ChatUiItem(
             guid = guid,
             displayName = if (::chatRepository.isInitialized) {
-                chatRepository.getDisplayName(this)
+                chatRepository.getDisplayNameSync(this)
             } else {
                 displayName ?: chatIdentifier ?: guid
             },

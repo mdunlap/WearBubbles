@@ -18,12 +18,19 @@ class ContactRepository(
     private val contactMap = mutableMapOf<String, String>()
     private var loaded = false
 
-    suspend fun loadContacts() {
-        // First load from Room cache (instant, works offline)
-        if (!loaded) {
-            // We'll populate from API, but Room is our fallback
-            loaded = true
+    suspend fun loadFromCache() {
+        if (loaded) return
+        val entities = contactDao.getAllContacts()
+        for (entity in entities) {
+            contactMap[entity.normalizedAddress] = entity.displayName
         }
+        loaded = true
+        Log.d(TAG, "Loaded ${contactMap.size} contacts from Room cache")
+    }
+
+    suspend fun loadContacts() {
+        // Load Room cache first for instant lookups
+        if (!loaded) loadFromCache()
 
         try {
             val response = api.getContacts(password)
@@ -51,29 +58,19 @@ class ContactRepository(
                 }
             }
 
-            // Persist to Room
+            // Upsert only — no delete-all, preserves data during brief API failures
             if (entities.isNotEmpty()) {
-                contactDao.deleteAll()
                 contactDao.upsertContacts(entities)
             }
             Log.d(TAG, "Loaded ${contactMap.size} contact addresses from API")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to load contacts from API, using cache", e)
-            // Fallback: load from Room cache
-            loadFromCache()
         }
-    }
-
-    private suspend fun loadFromCache() {
-        // We can't easily iterate all contacts from Room without a getAll,
-        // but the lookup methods below will query Room directly as fallback
     }
 
     suspend fun getDisplayName(address: String): String {
         val normalized = normalizeAddress(address)
-        // Try in-memory first
         contactMap[normalized]?.let { return it }
-        // Try Room cache
         contactDao.getDisplayName(normalized)?.let { name ->
             contactMap[normalized] = name
             return name
@@ -85,7 +82,7 @@ class ContactRepository(
         return addresses.map { getDisplayName(it) }.joinToString(", ")
     }
 
-    // Synchronous version using only in-memory cache
+    // Synchronous version using only in-memory cache (no DB round-trips)
     fun getDisplayNameSync(address: String): String {
         return contactMap[normalizeAddress(address)] ?: formatAddress(address)
     }

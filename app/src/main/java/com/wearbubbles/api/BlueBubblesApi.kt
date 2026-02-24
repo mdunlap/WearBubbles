@@ -30,6 +30,12 @@ interface BlueBubblesApi {
         @Body body: SendMessageRequest
     ): SendMessageResponse
 
+    @POST("/api/v1/message/react")
+    suspend fun reactToMessage(
+        @Query("password") password: String,
+        @Body body: ReactRequest
+    ): SendMessageResponse
+
     @POST("/api/v1/chat/{guid}/read")
     suspend fun markChatRead(
         @Path("guid") chatGuid: String,

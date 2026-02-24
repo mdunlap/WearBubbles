@@ -12,13 +12,21 @@ android {
         applicationId = "com.wearbubbles"
         minSdk = 30
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.2.0"
+    }
+
+    signingConfigs {
+        getByName("debug") {
+            // Uses default debug keystore
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = true
+            isShrinkResources = true
+            signingConfig = signingConfigs.getByName("debug") // Allow sideloading release builds
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -29,11 +37,15 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        isCoreLibraryDesugaringEnabled = true
     }
 
     kotlinOptions {
         jvmTarget = "17"
         freeCompilerArgs += "-opt-in=com.google.android.horologist.annotations.ExperimentalHorologistApi"
+        freeCompilerArgs += listOf(
+            "-P", "plugin:androidx.compose.compiler.plugins.kotlin:stabilityConfigurationPath=${project.projectDir.absolutePath}/stability-config.txt"
+        )
     }
 
     buildFeatures {
@@ -52,6 +64,9 @@ android {
 }
 
 dependencies {
+    // Core library desugaring (for java.time on API 30)
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
+
     // Compose for Wear OS
     val wearComposeVersion = "1.3.0"
     implementation("androidx.wear.compose:compose-material:$wearComposeVersion")

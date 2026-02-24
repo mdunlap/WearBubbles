@@ -12,6 +12,9 @@ interface ContactDao {
     @Upsert
     suspend fun upsertContacts(contacts: List<ContactEntity>)
 
+    @Query("SELECT * FROM contacts")
+    suspend fun getAllContacts(): List<ContactEntity>
+
     @Query("DELETE FROM contacts")
     suspend fun deleteAll()
 }

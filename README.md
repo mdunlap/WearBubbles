@@ -10,10 +10,12 @@ WearBubbles connects to a self-hosted BlueBubbles server to let you view convers
 
 - **Conversation list** — Browse your iMessage chats with contact name resolution and unread indicators
 - **Read & reply** — View full message threads and send replies using the on-watch keyboard
-- **Image & GIF support** — View image and GIF attachments inline
+- **Image & GIF support** — View image and GIF attachments inline with EXIF rotation
 - **Real-time updates** — WebSocket connection delivers new messages instantly
-- **Background notifications** — Periodic sync checks for new messages and posts notifications even when the app is closed
-- **Phone companion app** — Enter credentials on your phone and send them to the watch via the Wearable Data Layer API
+- **Notifications** — Real-time push notifications via Socket.IO with haptic feedback
+- **Heart react** — Long-press any message to send a love tapback
+- **Settings** — Toggle haptic feedback, view server status, reset watch data
+- **Phone companion app** — Enter credentials on your phone, view watch status dashboard, send config via Wearable Data Layer API
 
 ## Screenshots
 
@@ -171,10 +173,12 @@ WearBubbles/
 │       ├── socket/                   # Socket.IO manager for real-time events
 │       ├── db/                       # Room database, DAOs, entities
 │       ├── data/                     # Repositories, DataStore settings
+│       ├── notifications/             # Notification channels and helpers
 │       ├── ui/
 │       │   ├── setup/                # Server connection setup screen
 │       │   ├── conversations/        # Chat list screen
 │       │   ├── messages/             # Message thread screen
+│       │   ├── settings/             # Settings screen (haptics, status, reset)
 │       │   └── theme/                # Wear OS color theme
 │       ├── worker/                   # Background message sync (WorkManager)
 │       ├── DataLayerListenerService.kt  # Receives credentials from phone
@@ -200,6 +204,7 @@ WearBubbles uses the following BlueBubbles REST endpoints:
 | `POST /api/v1/chat/query` | Fetch conversation list |
 | `GET /api/v1/chat/{guid}/message` | Fetch messages for a chat |
 | `POST /api/v1/message/text` | Send a message (via AppleScript) |
+| `POST /api/v1/message/react` | Send a tapback reaction (heart) |
 | `POST /api/v1/chat/{guid}/read` | Mark a conversation as read |
 | `GET /api/v1/contact` | Fetch contacts for name resolution |
 | `GET /api/v1/attachment/{guid}/download` | Download image attachments |

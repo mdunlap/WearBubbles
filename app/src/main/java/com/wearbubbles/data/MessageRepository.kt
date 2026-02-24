@@ -3,6 +3,7 @@ package com.wearbubbles.data
 import android.util.Log
 import com.wearbubbles.api.BlueBubblesApi
 import com.wearbubbles.api.dto.MessageDto
+import com.wearbubbles.api.dto.ReactRequest
 import com.wearbubbles.api.dto.SendMessageRequest
 import com.wearbubbles.db.MessageDao
 import com.wearbubbles.db.entities.MessageEntity
@@ -96,6 +97,19 @@ class MessageRepository(
         } catch (e: Exception) {
             Log.e(TAG, "Failed to send message", e)
             messageDao.deleteMessage(tempGuid)
+            false
+        }
+    }
+
+    suspend fun reactToMessage(chatGuid: String, messageGuid: String): Boolean {
+        return try {
+            val response = api.reactToMessage(
+                password = password,
+                body = ReactRequest(chatGuid = chatGuid, selectedMessageGuid = messageGuid)
+            )
+            response.status == 200
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to react to message", e)
             false
         }
     }

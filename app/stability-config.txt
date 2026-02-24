@@ -1,0 +1,6 @@
+// Compose stability configuration
+// Treat these collection types as stable for skip optimization
+java.util.List
+kotlin.collections.List
+kotlin.collections.Map
+kotlin.collections.Set

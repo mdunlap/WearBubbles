@@ -2,8 +2,10 @@ package com.wearbubbles.ui.messages
 
 import android.app.Application
 import android.util.Log
+import androidx.compose.runtime.Immutable
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.wearbubbles.WearBubblesApp
 import com.wearbubbles.api.ApiClient
 import com.wearbubbles.data.MessageRepository
 import com.wearbubbles.data.SettingsDataStore
@@ -13,6 +15,7 @@ import com.wearbubbles.socket.SocketManager
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
+@Immutable
 data class MessageUiItem(
     val guid: String,
     val text: String,
@@ -23,6 +26,7 @@ data class MessageUiItem(
     val attachmentMimeType: String? = null
 )
 
+@Immutable
 data class MessageDetailUiState(
     val messages: List<MessageUiItem> = emptyList(),
     val isLoading: Boolean = true,
@@ -61,11 +65,15 @@ class MessageDetailViewModel(application: Application) : AndroidViewModel(applic
                     password = password
                 )
 
+                // Use shared socket from Application — never create a new one
+                val effectiveSocketManager = socketManager
+                    ?: (getApplication<Application>() as WearBubblesApp).socketManager
+
                 messageRepository = MessageRepository(
                     api = api,
                     password = password,
                     messageDao = db.messageDao(),
-                    socketManager = socketManager ?: SocketManager(),
+                    socketManager = effectiveSocketManager,
                     scope = viewModelScope
                 )
 
@@ -98,6 +106,14 @@ class MessageDetailViewModel(application: Application) : AndroidViewModel(applic
                     isLoading = false,
                     error = e.message
                 )
+            }
+        }
+    }
+
+    fun reactToMessage(messageGuid: String) {
+        viewModelScope.launch {
+            if (::messageRepository.isInitialized) {
+                messageRepository.reactToMessage(chatGuid, messageGuid)
             }
         }
     }

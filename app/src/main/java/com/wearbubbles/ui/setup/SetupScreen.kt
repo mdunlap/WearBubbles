@@ -12,17 +12,23 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.wear.compose.material.*
 import androidx.wear.input.RemoteInputIntentHelper
 import androidx.wear.input.wearableExtender
+import com.google.android.horologist.compose.layout.ScalingLazyColumn
+import com.google.android.horologist.compose.layout.ScalingLazyColumnDefaults
+import com.google.android.horologist.compose.layout.ScalingLazyColumnDefaults.ItemType
+import com.google.android.horologist.compose.layout.ScreenScaffold
+import com.google.android.horologist.compose.layout.rememberResponsiveColumnState
 
 @Composable
 fun SetupScreen(
     onConnected: () -> Unit,
     viewModel: SetupViewModel = viewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     LaunchedEffect(uiState.isConnected) {
         if (uiState.isConnected) {
@@ -46,15 +52,17 @@ fun SetupScreen(
         viewModel.onPasswordChanged(pwd)
     }
 
+    val columnState = rememberResponsiveColumnState(
+        contentPadding = ScalingLazyColumnDefaults.padding(
+            first = ItemType.Text,
+            last = ItemType.Chip
+        )
+    )
+
+    ScreenScaffold(scrollState = columnState) {
     ScalingLazyColumn(
         modifier = Modifier.fillMaxSize(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        contentPadding = PaddingValues(
-            top = 40.dp,
-            start = 16.dp,
-            end = 16.dp,
-            bottom = 16.dp
-        )
+        columnState = columnState
     ) {
         item {
             Text(
@@ -64,7 +72,17 @@ fun SetupScreen(
             )
         }
 
-        item { Spacer(modifier = Modifier.height(8.dp)) }
+        item {
+            Text(
+                text = "Enter credentials below or use the WearBubbles companion app on your phone.",
+                style = MaterialTheme.typography.caption3,
+                color = MaterialTheme.colors.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+            )
+        }
+
+        item { Spacer(modifier = Modifier.height(4.dp)) }
 
         item {
             Chip(
@@ -139,6 +157,7 @@ fun SetupScreen(
                 )
             }
         }
+    }
     }
 }
 

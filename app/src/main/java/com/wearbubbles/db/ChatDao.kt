@@ -27,4 +27,13 @@ interface ChatDao {
 
     @Query("DELETE FROM chats WHERE guid = :guid")
     suspend fun deleteChat(guid: String)
+
+    @Query("SELECT COUNT(*) FROM chats")
+    suspend fun getChatCount(): Int
+
+    @Query("SELECT COUNT(*) FROM chats WHERE hasUnreadMessage = 1")
+    suspend fun getUnreadCount(): Int
+
+    @Query("SELECT MAX(lastMessageDate) FROM chats")
+    suspend fun getLastMessageTime(): Long?
 }

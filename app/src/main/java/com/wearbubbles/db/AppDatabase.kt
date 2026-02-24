@@ -10,7 +10,7 @@ import com.wearbubbles.db.entities.MessageEntity
 
 @Database(
     entities = [ChatEntity::class, MessageEntity::class, ContactEntity::class],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

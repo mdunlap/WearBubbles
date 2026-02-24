@@ -16,6 +16,7 @@ object ApiClient {
         .setLenient()
         .create()
 
+    @Synchronized
     fun getInstance(baseUrl: String): BlueBubblesApi {
         val normalizedUrl = baseUrl.trimEnd('/')
         if (api != null && currentBaseUrl == normalizedUrl) {

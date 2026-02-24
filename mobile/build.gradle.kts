@@ -11,13 +11,20 @@ android {
         applicationId = "com.wearbubbles"
         minSdk = 28
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.2.0"
+    }
+
+    signingConfigs {
+        getByName("debug") {
+            // Uses default debug keystore
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = true
+            signingConfig = signingConfigs.getByName("debug")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

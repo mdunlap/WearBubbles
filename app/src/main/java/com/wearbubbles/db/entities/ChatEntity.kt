@@ -1,9 +1,13 @@
 package com.wearbubbles.db.entities
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "chats")
+@Entity(
+    tableName = "chats",
+    indices = [Index("lastMessageDate")]
+)
 data class ChatEntity(
     @PrimaryKey
     val guid: String,
