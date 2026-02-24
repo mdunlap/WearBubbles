@@ -7,14 +7,14 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
@@ -177,6 +177,7 @@ fun MessageDetailScreen(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun MessageBubble(
     message: MessageUiItem,
@@ -217,14 +218,13 @@ private fun MessageBubble(
                 .fillMaxWidth(0.85f)
                 .clip(shape)
                 .background(bubbleColor)
-                .pointerInput(message.guid) {
-                    detectTapGestures(
-                        onLongPress = {
-                            showHeart = true
-                            onLongPress(message.guid)
-                        }
-                    )
-                }
+                .combinedClickable(
+                    onClick = {},
+                    onLongClick = {
+                        showHeart = true
+                        onLongPress(message.guid)
+                    }
+                )
                 .padding(
                     horizontal = if (hasAttachment) 4.dp else 10.dp,
                     vertical = if (hasAttachment) 4.dp else 6.dp
