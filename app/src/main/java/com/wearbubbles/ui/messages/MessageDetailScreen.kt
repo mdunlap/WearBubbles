@@ -210,7 +210,14 @@ private fun MessageBubble(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 2.dp),
+            .padding(vertical = 2.dp)
+            .combinedClickable(
+                onClick = {},
+                onLongClick = {
+                    showHeart = true
+                    onLongPress(message.guid)
+                }
+            ),
         contentAlignment = alignment
     ) {
         Column(
@@ -218,13 +225,6 @@ private fun MessageBubble(
                 .fillMaxWidth(0.85f)
                 .clip(shape)
                 .background(bubbleColor)
-                .combinedClickable(
-                    onClick = {},
-                    onLongClick = {
-                        showHeart = true
-                        onLongPress(message.guid)
-                    }
-                )
                 .padding(
                     horizontal = if (hasAttachment) 4.dp else 10.dp,
                     vertical = if (hasAttachment) 4.dp else 6.dp

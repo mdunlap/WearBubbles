@@ -1,9 +1,9 @@
 package com.wearbubbles.ui.conversations
 
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -173,6 +173,7 @@ fun ConversationListScreen(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ChatItem(
     chat: ChatUiItem,
@@ -183,29 +184,33 @@ private fun ChatItem(
         if (chat.isFromMe) "You: ${chat.lastMessage}" else chat.lastMessage
     }
 
-    // Use Chip with long-press via pointerInput instead of double click handler
-    Chip(
-        onClick = onClick,
-        label = {
-            Text(
-                text = chat.displayName,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                fontWeight = if (chat.hasUnread) FontWeight.Bold else FontWeight.Normal
-            )
-        },
-        secondaryLabel = {
-            Text(
-                text = preview,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        },
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .pointerInput(chat.guid) {
-                detectTapGestures(onLongPress = { onLongClick() })
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
+    ) {
+        Chip(
+            onClick = {},
+            label = {
+                Text(
+                    text = chat.displayName,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    fontWeight = if (chat.hasUnread) FontWeight.Bold else FontWeight.Normal
+                )
             },
-        colors = ChipDefaults.secondaryChipColors()
-    )
+            secondaryLabel = {
+                Text(
+                    text = preview,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            },
+            modifier = Modifier.fillMaxWidth(),
+            colors = ChipDefaults.secondaryChipColors()
+        )
+    }
 }
