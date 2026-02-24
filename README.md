@@ -71,19 +71,39 @@ This builds both modules:
 
 > Adjust `JAVA_HOME` and `ANDROID_HOME` to match your system if not using Homebrew defaults.
 
-### 4. Install
+### 4. Install via ADB
 
-**Watch (via ADB):**
+[ADB (Android Debug Bridge)](https://developer.android.com/tools/adb) is a command-line tool for communicating with Android devices. If you don't have it already:
+
+- **macOS:** `brew install android-platform-tools`
+- **Windows/Linux:** Download [SDK Platform Tools](https://developer.android.com/tools/releases/platform-tools#downloads) and add to your PATH
+
+#### Enable developer options
+
+**Phone:** Settings > About phone > tap "Build number" 7 times > go back to Settings > Developer options > enable "USB debugging"
+
+**Wear OS watch:** Settings > About watch > tap "Build number" 7 times > go back to Settings > Developer options > enable "ADB debugging" and "Debug over Wi-Fi"
+
+#### Connect via USB
+
+Plug in your phone via USB cable. Approve the prompt on the device, then:
 
 ```bash
-adb -s <watch-ip>:<port> install app/build/outputs/apk/debug/app-debug.apk
+adb devices          # verify it shows up
+adb install mobile/build/outputs/apk/debug/mobile-debug.apk
 ```
 
-**Phone (via ADB):**
+#### Connect via Wi-Fi (required for watches)
+
+On the watch, go to Developer options > Debug over Wi-Fi. It will show an IP and port for pairing.
 
 ```bash
-adb -s <phone-ip>:<port> install mobile/build/outputs/apk/debug/mobile-debug.apk
+adb pair <ip>:<pairing-port>       # enter the pairing code shown on watch
+adb connect <ip>:<connect-port>    # the connect port differs from the pairing port
+adb -s <ip>:<connect-port> install app/build/outputs/apk/debug/app-debug.apk
 ```
+
+> Tip: Run `adb devices` to see all connected devices and their identifiers.
 
 ## Setup
 
