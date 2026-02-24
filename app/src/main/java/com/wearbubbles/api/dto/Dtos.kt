@@ -56,10 +56,27 @@ data class MessageDto(
     val dateRead: Long?,
     val handle: HandleDto?,
     val chats: List<ChatDto>?,
+    val attachments: List<AttachmentDto>?,
     @SerializedName("associatedMessageGuid")
     val associatedMessageGuid: String?,
     @SerializedName("associatedMessageType")
     val associatedMessageType: String?
+)
+
+data class AttachmentDto(
+    val guid: String?,
+    @SerializedName("mimeType")
+    val mimeType: String?,
+    @SerializedName("transferName")
+    val transferName: String?,
+    @SerializedName("totalBytes")
+    val totalBytes: Long?,
+    @SerializedName("transferState")
+    val transferState: Int?,
+    @SerializedName("hideAttachment")
+    val hideAttachment: Boolean?,
+    @SerializedName("isSticker")
+    val isSticker: Boolean?
 )
 
 data class HandleDto(

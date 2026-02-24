@@ -18,14 +18,18 @@ data class MessageUiItem(
     val text: String,
     val isFromMe: Boolean,
     val dateCreated: Long,
-    val isTemporary: Boolean = false
+    val isTemporary: Boolean = false,
+    val attachmentGuid: String? = null,
+    val attachmentMimeType: String? = null
 )
 
 data class MessageDetailUiState(
     val messages: List<MessageUiItem> = emptyList(),
     val isLoading: Boolean = true,
     val isSending: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val serverUrl: String = "",
+    val password: String = ""
 )
 
 class MessageDetailViewModel(application: Application) : AndroidViewModel(application) {
@@ -52,6 +56,11 @@ class MessageDetailViewModel(application: Application) : AndroidViewModel(applic
                 val password = settingsDataStore.getPassword()
                 val api = ApiClient.getInstance(serverUrl)
 
+                _uiState.value = _uiState.value.copy(
+                    serverUrl = serverUrl,
+                    password = password
+                )
+
                 messageRepository = MessageRepository(
                     api = api,
                     password = password,
@@ -66,12 +75,11 @@ class MessageDetailViewModel(application: Application) : AndroidViewModel(applic
                     api.markChatRead(chatGuid, password)
                 } catch (_: Exception) {}
 
-                // Fetch messages from API first
+                // Fetch messages from API
                 Log.d("MessageDetailVM", "Fetching messages for $chatGuid")
                 messageRepository.refreshMessages(chatGuid)
-                Log.d("MessageDetailVM", "Messages fetched, now observing Room")
 
-                // Then observe from Room
+                // Observe from Room
                 messageRepository.getMessages(chatGuid).collect { entities ->
                     _uiState.value = _uiState.value.copy(
                         messages = entities.map { it.toUiItem() },
@@ -109,7 +117,9 @@ class MessageDetailViewModel(application: Application) : AndroidViewModel(applic
             text = text ?: "",
             isFromMe = isFromMe,
             dateCreated = dateCreated,
-            isTemporary = isTemporary
+            isTemporary = isTemporary,
+            attachmentGuid = attachmentGuid,
+            attachmentMimeType = attachmentMimeType
         )
     }
 }

@@ -58,7 +58,7 @@ class ChatRepository(
         try {
             val response = api.getChats(
                 password = password,
-                body = ChatQueryRequest(limit = 50)
+                body = ChatQueryRequest(limit = 30)
             )
             val entities = response.data.map { it.toEntity() }
             chatDao.upsertChats(entities)

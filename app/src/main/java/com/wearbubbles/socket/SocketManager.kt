@@ -41,9 +41,9 @@ class SocketManager {
             val opts = IO.Options().apply {
                 forceNew = true
                 reconnection = true
-                reconnectionAttempts = Int.MAX_VALUE
-                reconnectionDelay = 1000
-                reconnectionDelayMax = 5000
+                reconnectionAttempts = 10
+                reconnectionDelay = 2000
+                reconnectionDelayMax = 30000
                 query = "password=$password"
                 transports = arrayOf("polling", "websocket")
             }

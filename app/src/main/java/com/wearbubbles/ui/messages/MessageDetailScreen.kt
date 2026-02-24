@@ -11,6 +11,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -18,6 +20,10 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.wear.compose.material.*
 import androidx.wear.input.RemoteInputIntentHelper
 import androidx.wear.input.wearableExtender
+import coil.compose.AsyncImage
+import coil.decode.GifDecoder
+import coil.request.CachePolicy
+import coil.request.ImageRequest
 import com.wearbubbles.ui.theme.BlueBubble
 import com.wearbubbles.ui.theme.GrayBubble
 import java.text.SimpleDateFormat
@@ -51,7 +57,6 @@ fun MessageDetailScreen(
     // Auto-scroll to bottom when new messages arrive
     LaunchedEffect(uiState.messages.size) {
         if (uiState.messages.isNotEmpty()) {
-            // Last item index = messages + header + reply chip
             listState.animateScrollToItem(uiState.messages.size)
         }
     }
@@ -90,7 +95,11 @@ fun MessageDetailScreen(
 
         items(uiState.messages.size) { index ->
             val message = uiState.messages[index]
-            MessageBubble(message = message)
+            MessageBubble(
+                message = message,
+                serverUrl = uiState.serverUrl,
+                password = uiState.password
+            )
         }
 
         // Reply chip
@@ -139,7 +148,11 @@ fun MessageDetailScreen(
 }
 
 @Composable
-private fun MessageBubble(message: MessageUiItem) {
+private fun MessageBubble(
+    message: MessageUiItem,
+    serverUrl: String,
+    password: String
+) {
     val alignment = if (message.isFromMe) Alignment.CenterEnd else Alignment.CenterStart
     val bubbleColor = if (message.isFromMe) BlueBubble else GrayBubble
     val shape = RoundedCornerShape(
@@ -148,6 +161,12 @@ private fun MessageBubble(message: MessageUiItem) {
         bottomStart = if (message.isFromMe) 16.dp else 4.dp,
         bottomEnd = if (message.isFromMe) 4.dp else 16.dp
     )
+
+    val hasAttachment = message.attachmentGuid != null
+    val hasText = message.text.isNotBlank()
+
+    // Skip empty messages (no text and no attachment)
+    if (!hasText && !hasAttachment) return
 
     Box(
         modifier = Modifier
@@ -160,22 +179,64 @@ private fun MessageBubble(message: MessageUiItem) {
                 .fillMaxWidth(0.85f)
                 .clip(shape)
                 .background(bubbleColor)
-                .padding(horizontal = 10.dp, vertical = 6.dp)
+                .padding(horizontal = if (hasAttachment) 4.dp else 10.dp, vertical = if (hasAttachment) 4.dp else 6.dp)
         ) {
-            Text(
-                text = message.text,
-                color = MaterialTheme.colors.onPrimary,
-                fontSize = 13.sp
-            )
+            // Image/GIF attachment
+            if (hasAttachment) {
+                val thumbnailUrl = buildThumbnailUrl(serverUrl, password, message.attachmentGuid!!)
+                val isGif = message.attachmentMimeType == "image/gif"
+
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(thumbnailUrl)
+                        .crossfade(true)
+                        .memoryCachePolicy(CachePolicy.ENABLED)
+                        .diskCachePolicy(CachePolicy.ENABLED)
+                        .apply {
+                            if (isGif) decoderFactory(GifDecoder.Factory())
+                        }
+                        .build(),
+                    contentDescription = "Image",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 60.dp, max = 120.dp)
+                        .clip(RoundedCornerShape(12.dp)),
+                    contentScale = ContentScale.Crop
+                )
+
+                if (hasText) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                }
+            }
+
+            // Text
+            if (hasText) {
+                Text(
+                    text = message.text,
+                    color = MaterialTheme.colors.onPrimary,
+                    fontSize = 13.sp,
+                    modifier = if (hasAttachment) Modifier.padding(horizontal = 6.dp) else Modifier
+                )
+            }
+
+            // Timestamp
             Text(
                 text = formatTime(message.dateCreated),
                 color = MaterialTheme.colors.onPrimary.copy(alpha = 0.6f),
                 fontSize = 10.sp,
                 textAlign = if (message.isFromMe) TextAlign.End else TextAlign.Start,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .then(if (hasAttachment) Modifier.padding(horizontal = 6.dp) else Modifier)
             )
         }
     }
+}
+
+private fun buildThumbnailUrl(serverUrl: String, password: String, attachmentGuid: String): String {
+    val base = serverUrl.trimEnd('/')
+    // Request height=150 thumbnail for watch screen — small but clear
+    return "$base/api/v1/attachment/$attachmentGuid/download?password=$password&height=150&quality=good"
 }
 
 private fun formatTime(timestamp: Long): String {

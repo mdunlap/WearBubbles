@@ -52,7 +52,7 @@ class MessageRepository(
             val response = api.getMessages(
                 chatGuid = chatGuid,
                 password = password,
-                limit = 100
+                limit = 25
             )
             val entities = response.data.map { it.toEntity(chatGuid) }
             messageDao.upsertMessages(entities)
@@ -88,33 +88,35 @@ class MessageRepository(
                 )
             )
             Log.d(TAG, "Send response: status=${response.status} message=${response.message}")
-            // Replace temp message with real one if server returned it
             if (response.data != null) {
                 messageDao.deleteMessage(tempGuid)
                 messageDao.upsertMessage(response.data.toEntity(chatGuid))
             }
-            // For apple-script method, response.status 200 means success even without data
             response.status == 200
         } catch (e: Exception) {
             Log.e(TAG, "Failed to send message", e)
-            // Remove optimistic message on failure
             messageDao.deleteMessage(tempGuid)
             false
         }
     }
 
-    suspend fun getLatestMessageDate(chatGuid: String): Long? {
-        return messageDao.getLatestMessage(chatGuid)?.dateCreated
-    }
-
     private fun MessageDto.toEntity(chatGuid: String): MessageEntity {
+        // Find the first visible image/gif attachment
+        val imageAttachment = attachments?.firstOrNull { att ->
+            att.hideAttachment != true &&
+            att.mimeType != null &&
+            att.transferState == 5 &&
+            att.mimeType.startsWith("image/")
+        }
         return MessageEntity(
             guid = guid,
             chatGuid = chatGuid,
             text = text,
             isFromMe = isFromMe,
             dateCreated = dateCreated ?: System.currentTimeMillis(),
-            handleAddress = handle?.address
+            handleAddress = handle?.address,
+            attachmentGuid = imageAttachment?.guid,
+            attachmentMimeType = imageAttachment?.mimeType
         )
     }
 }

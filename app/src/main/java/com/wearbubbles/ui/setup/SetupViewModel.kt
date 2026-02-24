@@ -11,8 +11,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 data class SetupUiState(
-    val serverUrl: String = "https://73b8-65-78-17-120.ngrok-free.app",
-    val password: String = "7Pheasant!",
+    val serverUrl: String = "",
+    val password: String = "",
     val isLoading: Boolean = false,
     val error: String? = null,
     val isConnected: Boolean = false

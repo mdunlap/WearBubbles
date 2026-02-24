@@ -12,5 +12,7 @@ data class MessageEntity(
     val isFromMe: Boolean,
     val dateCreated: Long,
     val handleAddress: String?,
-    val isTemporary: Boolean = false
+    val isTemporary: Boolean = false,
+    val attachmentGuid: String? = null,
+    val attachmentMimeType: String? = null
 )
