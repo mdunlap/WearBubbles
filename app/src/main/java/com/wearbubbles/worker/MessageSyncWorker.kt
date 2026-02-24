@@ -72,7 +72,7 @@ class MessageSyncWorker(
             var newMessageCount = 0
             var lastSenderName = ""
 
-            val contactRepo = ContactRepository(api, password)
+            val contactRepo = ContactRepository(api, password, db.contactDao())
             contactRepo.loadContacts()
 
             for (chat in response.data) {

@@ -69,22 +69,28 @@ class MessageDetailViewModel(application: Application) : AndroidViewModel(applic
                     scope = viewModelScope
                 )
 
-                // Mark chat as read
-                try {
-                    db.chatDao().markRead(chatGuid)
-                    api.markChatRead(chatGuid, password)
-                } catch (_: Exception) {}
+                // Start observing Room IMMEDIATELY — shows cached messages instantly
+                launch {
+                    messageRepository.getMessages(chatGuid).collect { entities ->
+                        _uiState.value = _uiState.value.copy(
+                            messages = entities.map { it.toUiItem() },
+                            isLoading = false
+                        )
+                    }
+                }
 
-                // Fetch messages from API
-                Log.d("MessageDetailVM", "Fetching messages for $chatGuid")
-                messageRepository.refreshMessages(chatGuid)
+                // Refresh from API in background — Room flow auto-updates when new data arrives
+                launch {
+                    Log.d("MessageDetailVM", "Fetching messages for $chatGuid")
+                    messageRepository.refreshMessages(chatGuid)
+                }
 
-                // Observe from Room
-                messageRepository.getMessages(chatGuid).collect { entities ->
-                    _uiState.value = _uiState.value.copy(
-                        messages = entities.map { it.toUiItem() },
-                        isLoading = false
-                    )
+                // Mark chat as read in background
+                launch {
+                    try {
+                        db.chatDao().markRead(chatGuid)
+                        api.markChatRead(chatGuid, password)
+                    } catch (_: Exception) {}
                 }
             } catch (e: Exception) {
                 Log.e("MessageDetailVM", "Error initializing", e)

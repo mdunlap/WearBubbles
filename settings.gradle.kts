@@ -16,3 +16,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "WearBubbles"
 include(":app")
+include(":mobile")

@@ -1,5 +1,7 @@
 package com.wearbubbles.ui.conversations
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -9,6 +11,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.wear.compose.material.*
+import com.google.android.horologist.compose.layout.ScalingLazyColumn
+import com.google.android.horologist.compose.layout.ScalingLazyColumnDefaults
+import com.google.android.horologist.compose.layout.ScalingLazyColumnDefaults.ItemType
+import com.google.android.horologist.compose.layout.rememberResponsiveColumnState
 
 @Composable
 fun ConversationListScreen(
@@ -18,20 +24,24 @@ fun ConversationListScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
+    // Track which chat is pending delete confirmation
+    var pendingDeleteGuid by remember { mutableStateOf<String?>(null) }
+
     LaunchedEffect(Unit) {
         viewModel.initialize()
         viewModel.refresh()
     }
 
+    val columnState = rememberResponsiveColumnState(
+        contentPadding = ScalingLazyColumnDefaults.padding(
+            first = ItemType.Text,
+            last = ItemType.Chip
+        )
+    )
+
     ScalingLazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(
-            top = 40.dp,
-            start = 8.dp,
-            end = 8.dp,
-            bottom = 16.dp
-        ),
-        horizontalAlignment = Alignment.CenterHorizontally
+        columnState = columnState
     ) {
         item(key = "header") {
             Text(
@@ -79,10 +89,58 @@ fun ConversationListScreen(
             key = { uiState.chats[it].guid }
         ) { index ->
             val chat = uiState.chats[index]
-            ChatItem(
-                chat = chat,
-                onClick = { onChatClick(chat.guid) }
-            )
+            if (pendingDeleteGuid == chat.guid) {
+                // Confirm delete chip
+                Chip(
+                    onClick = {
+                        viewModel.deleteChat(chat.guid)
+                        pendingDeleteGuid = null
+                    },
+                    label = {
+                        Text("Remove ${chat.displayName}?", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    },
+                    secondaryLabel = {
+                        Text("Tap to confirm, swipe to cancel")
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ChipDefaults.chipColors(
+                        backgroundColor = MaterialTheme.colors.error
+                    )
+                )
+            } else {
+                ChatItem(
+                    chat = chat,
+                    onClick = { onChatClick(chat.guid) },
+                    onLongClick = { pendingDeleteGuid = chat.guid }
+                )
+            }
+        }
+
+        // Load more chip
+        if (uiState.hasMore && uiState.chats.isNotEmpty()) {
+            item(key = "load_more") {
+                if (uiState.isLoadingMore) {
+                    CircularProgressIndicator(
+                        modifier = Modifier
+                            .padding(vertical = 8.dp)
+                            .size(20.dp),
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Chip(
+                        onClick = { viewModel.loadMore() },
+                        label = {
+                            Text(
+                                text = "Load more",
+                                modifier = Modifier.fillMaxWidth(),
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ChipDefaults.secondaryChipColors()
+                    )
+                }
+            }
         }
 
         item(key = "spacer") { Spacer(modifier = Modifier.height(4.dp)) }
@@ -98,10 +156,12 @@ fun ConversationListScreen(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ChatItem(
     chat: ChatUiItem,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onLongClick: () -> Unit
 ) {
     val preview = remember(chat.lastMessage, chat.isFromMe) {
         if (chat.isFromMe) "You: ${chat.lastMessage}" else chat.lastMessage
@@ -124,7 +184,12 @@ private fun ChatItem(
                 overflow = TextOverflow.Ellipsis
             )
         },
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            ),
         colors = ChipDefaults.secondaryChipColors()
     )
 }

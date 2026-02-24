@@ -108,7 +108,6 @@ data class ContactResponse(
 )
 
 data class ContactDto(
-    val id: String?,
     @SerializedName("firstName")
     val firstName: String?,
     @SerializedName("lastName")

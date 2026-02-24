@@ -20,19 +20,26 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.wear.compose.material.*
 import androidx.wear.input.RemoteInputIntentHelper
 import androidx.wear.input.wearableExtender
-import coil.compose.SubcomposeAsyncImage
+import coil.compose.AsyncImage
 import coil.decode.GifDecoder
 import coil.request.CachePolicy
 import coil.request.ImageRequest
+import com.google.android.horologist.compose.layout.ScalingLazyColumn
+import com.google.android.horologist.compose.layout.ScalingLazyColumnDefaults
+import com.google.android.horologist.compose.layout.ScalingLazyColumnDefaults.ItemType
+import com.google.android.horologist.compose.layout.rememberResponsiveColumnState
 import com.wearbubbles.ui.theme.BlueBubble
 import com.wearbubbles.ui.theme.GrayBubble
 import java.text.SimpleDateFormat
 import java.util.*
 
-// Pre-allocate shapes to avoid reallocation on every recompose
+// Pre-allocate shapes and formatters
 private val SentBubbleShape = RoundedCornerShape(16.dp, 16.dp, 4.dp, 16.dp)
 private val ReceivedBubbleShape = RoundedCornerShape(16.dp, 16.dp, 16.dp, 4.dp)
 private val ImageClipShape = RoundedCornerShape(12.dp)
+private val TimeFormat = SimpleDateFormat("h:mm a", Locale.US)
+private val DayTimeFormat = SimpleDateFormat("EEE h:mm a", Locale.US)
+private val DateFormat = SimpleDateFormat("MMM d", Locale.US)
 
 @Composable
 fun MessageDetailScreen(
@@ -57,28 +64,26 @@ fun MessageDetailScreen(
         }
     }
 
-    val listState = rememberScalingLazyListState()
+    val columnState = rememberResponsiveColumnState(
+        contentPadding = ScalingLazyColumnDefaults.padding(
+            first = ItemType.Text,
+            last = ItemType.Chip
+        )
+    )
 
-    // Auto-scroll to bottom only on first load or when sending
+    // Auto-scroll to bottom when messages change
     val messageCount = uiState.messages.size
     var lastScrolledCount by remember { mutableIntStateOf(0) }
     LaunchedEffect(messageCount) {
         if (messageCount > 0 && messageCount != lastScrolledCount) {
             lastScrolledCount = messageCount
-            listState.scrollToItem(messageCount)
+            columnState.state.scrollToItem(messageCount)
         }
     }
 
     ScalingLazyColumn(
         modifier = Modifier.fillMaxSize(),
-        state = listState,
-        contentPadding = PaddingValues(
-            top = 40.dp,
-            start = 8.dp,
-            end = 8.dp,
-            bottom = 16.dp
-        ),
-        horizontalAlignment = Alignment.CenterHorizontally
+        columnState = columnState
     ) {
         item(key = "header") {
             Text(
@@ -230,56 +235,41 @@ private fun AttachmentImage(
     val context = LocalContext.current
     val isGif = mimeType == "image/gif"
 
-    // Remember the image request to avoid rebuilding on recompose
     val imageRequest = remember(attachmentGuid) {
         val url = "${serverUrl.trimEnd('/')}/api/v1/attachment/$attachmentGuid/download?password=$password&height=150&quality=good"
         ImageRequest.Builder(context)
             .data(url)
-            .crossfade(200)
+            .crossfade(false)
             .memoryCachePolicy(CachePolicy.ENABLED)
             .diskCachePolicy(CachePolicy.ENABLED)
-            .size(300, 300)
+            .size(250, 250)
             .apply {
                 if (isGif) decoderFactory(GifDecoder.Factory())
             }
             .build()
     }
 
-    SubcomposeAsyncImage(
+    AsyncImage(
         model = imageRequest,
         contentDescription = null,
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 60.dp, max = 120.dp)
             .clip(ImageClipShape),
-        contentScale = ContentScale.Crop,
-        loading = {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(80.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(16.dp),
-                    strokeWidth = 2.dp
-                )
-            }
-        }
+        contentScale = ContentScale.Crop
     )
 }
 
 private fun formatTime(timestamp: Long): String {
     if (timestamp == 0L) return ""
     val date = Date(timestamp)
-    val now = System.currentTimeMillis()
-    val diff = now - timestamp
+    val diff = System.currentTimeMillis() - timestamp
 
     return when {
         diff < 60_000 -> "now"
         diff < 3_600_000 -> "${diff / 60_000}m ago"
-        diff < 86_400_000 -> SimpleDateFormat("h:mm a", Locale.getDefault()).format(date)
-        diff < 604_800_000 -> SimpleDateFormat("EEE h:mm a", Locale.getDefault()).format(date)
-        else -> SimpleDateFormat("MMM d", Locale.getDefault()).format(date)
+        diff < 86_400_000 -> TimeFormat.format(date)
+        diff < 604_800_000 -> DayTimeFormat.format(date)
+        else -> DateFormat.format(date)
     }
 }

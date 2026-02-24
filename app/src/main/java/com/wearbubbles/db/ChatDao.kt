@@ -24,4 +24,7 @@ interface ChatDao {
 
     @Query("DELETE FROM chats WHERE guid NOT IN (SELECT guid FROM chats ORDER BY lastMessageDate DESC LIMIT 50)")
     suspend fun pruneOldChats()
+
+    @Query("DELETE FROM chats WHERE guid = :guid")
+    suspend fun deleteChat(guid: String)
 }

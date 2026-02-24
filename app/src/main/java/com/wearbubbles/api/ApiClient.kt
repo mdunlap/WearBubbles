@@ -1,11 +1,9 @@
 package com.wearbubbles.api
 
-import android.content.Context
-import okhttp3.Cache
+import com.google.gson.GsonBuilder
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
-import java.io.File
 import java.util.concurrent.TimeUnit
 
 object ApiClient {
@@ -13,6 +11,10 @@ object ApiClient {
     private var api: BlueBubblesApi? = null
     private var currentBaseUrl: String? = null
     private var httpClient: OkHttpClient? = null
+
+    private val gson = GsonBuilder()
+        .setLenient()
+        .create()
 
     fun getInstance(baseUrl: String): BlueBubblesApi {
         val normalizedUrl = baseUrl.trimEnd('/')
@@ -31,20 +33,12 @@ object ApiClient {
         val retrofit = Retrofit.Builder()
             .baseUrl("$normalizedUrl/")
             .client(client)
-            .addConverterFactory(GsonConverterFactory.create())
+            .addConverterFactory(GsonConverterFactory.create(gson))
             .build()
 
         api = retrofit.create(BlueBubblesApi::class.java)
         currentBaseUrl = normalizedUrl
         return api!!
-    }
-
-    fun getHttpClient(): OkHttpClient {
-        return httpClient ?: OkHttpClient.Builder()
-            .connectTimeout(10, TimeUnit.SECONDS)
-            .readTimeout(15, TimeUnit.SECONDS)
-            .build()
-            .also { httpClient = it }
     }
 
     fun reset() {

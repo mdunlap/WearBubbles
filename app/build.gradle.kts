@@ -33,6 +33,7 @@ android {
 
     kotlinOptions {
         jvmTarget = "17"
+        freeCompilerArgs += "-opt-in=com.google.android.horologist.annotations.ExperimentalHorologistApi"
     }
 
     buildFeatures {
@@ -107,4 +108,10 @@ dependencies {
     // Coil (image loading)
     implementation("io.coil-kt:coil-compose:2.5.0")
     implementation("io.coil-kt:coil-gif:2.5.0")
+
+    // Wearable Data Layer (phone companion credential sync)
+    implementation("com.google.android.gms:play-services-wearable:18.1.0")
+
+    // Horologist (Google's Wear OS companion library — same as Google Messages)
+    implementation("com.google.android.horologist:horologist-compose-layout:0.5.28")
 }

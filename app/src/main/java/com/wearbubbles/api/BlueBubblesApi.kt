@@ -19,7 +19,7 @@ interface BlueBubblesApi {
         @Path("guid") chatGuid: String,
         @Query("password") password: String,
         @Query("offset") offset: Int = 0,
-        @Query("limit") limit: Int = 25,
+        @Query("limit") limit: Int = 15,
         @Query("sort") sort: String = "DESC",
         @Query("with[]") with: List<String> = listOf("chat", "handle", "attachment")
     ): MessageQueryResponse

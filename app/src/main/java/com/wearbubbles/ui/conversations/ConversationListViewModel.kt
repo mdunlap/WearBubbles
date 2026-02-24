@@ -25,6 +25,8 @@ data class ChatUiItem(
 data class ConversationListUiState(
     val chats: List<ChatUiItem> = emptyList(),
     val isLoading: Boolean = true,
+    val isLoadingMore: Boolean = false,
+    val hasMore: Boolean = true,
     val error: String? = null
 )
 
@@ -52,7 +54,7 @@ class ConversationListViewModel(application: Application) : AndroidViewModel(app
                 val password = settingsDataStore.getPassword()
                 val api = ApiClient.getInstance(serverUrl)
 
-                contactRepository = ContactRepository(api, password)
+                contactRepository = ContactRepository(api, password, db.contactDao())
                 chatRepository = ChatRepository(
                     api = api,
                     password = password,
@@ -87,8 +89,28 @@ class ConversationListViewModel(application: Application) : AndroidViewModel(app
             _uiState.value = _uiState.value.copy(isLoading = true)
             if (::chatRepository.isInitialized) {
                 chatRepository.refreshChats()
+                _uiState.value = _uiState.value.copy(hasMore = chatRepository.hasMoreChats())
             }
             _uiState.value = _uiState.value.copy(isLoading = false)
+        }
+    }
+
+    fun loadMore() {
+        viewModelScope.launch {
+            if (!::chatRepository.isInitialized) return@launch
+            if (_uiState.value.isLoadingMore || !_uiState.value.hasMore) return@launch
+            _uiState.value = _uiState.value.copy(isLoadingMore = true)
+            chatRepository.loadMore()
+            _uiState.value = _uiState.value.copy(
+                isLoadingMore = false,
+                hasMore = chatRepository.hasMoreChats()
+            )
+        }
+    }
+
+    fun deleteChat(guid: String) {
+        viewModelScope.launch {
+            db.chatDao().deleteChat(guid)
         }
     }
 
@@ -97,7 +119,7 @@ class ConversationListViewModel(application: Application) : AndroidViewModel(app
         kotlinx.coroutines.runBlocking { settingsDataStore.getPassword() }
     }.getOrNull()
 
-    private fun ChatEntity.toUiItem(): ChatUiItem {
+    private suspend fun ChatEntity.toUiItem(): ChatUiItem {
         return ChatUiItem(
             guid = guid,
             displayName = if (::chatRepository.isInitialized) {

@@ -52,7 +52,7 @@ class MessageRepository(
             val response = api.getMessages(
                 chatGuid = chatGuid,
                 password = password,
-                limit = 25
+                limit = 15
             )
             val entities = response.data.map { it.toEntity(chatGuid) }
             messageDao.upsertMessages(entities)
@@ -105,7 +105,7 @@ class MessageRepository(
         val imageAttachment = attachments?.firstOrNull { att ->
             att.hideAttachment != true &&
             att.mimeType != null &&
-            att.transferState == 5 &&
+            att.guid != null &&
             att.mimeType.startsWith("image/")
         }
         return MessageEntity(
