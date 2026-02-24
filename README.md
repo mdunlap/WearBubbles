@@ -4,6 +4,8 @@ A Wear OS app that brings iMessage to your smartwatch via [BlueBubbles](https://
 
 WearBubbles connects to a self-hosted BlueBubbles server to let you view conversations, read messages, send replies, receive photos/gifs, and receive notifications.
 
+**Prebuilt APKs:** [Watch](https://github.com/mdunlap/WearBubbles/releases/latest/download/WearBubbles-watch.apk) | [Phone](https://github.com/mdunlap/WearBubbles/releases/latest/download/WearBubbles-phone.apk)
+
 ## Features
 
 - **Conversation list** — Browse your iMessage chats with contact name resolution and unread indicators
