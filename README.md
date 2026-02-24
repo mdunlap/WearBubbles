@@ -11,7 +11,7 @@ WearBubbles connects to a self-hosted BlueBubbles server to let you view convers
 - **Image & GIF support** — View image and GIF attachments inline
 - **Real-time updates** — WebSocket connection delivers new messages instantly
 - **Background notifications** — Periodic sync checks for new messages and posts notifications even when the app is closed
-- **Phone companion app** — Scan a QR code on your phone to send server credentials to the watch instantly via the Wearable Data Layer API
+- **Phone companion app** — Enter credentials on your phone and send them to the watch via the Wearable Data Layer API
 
 ## Screenshots
 
@@ -90,11 +90,9 @@ adb -s <phone-ip>:<port> install mobile/build/outputs/apk/debug/mobile-debug.apk
 1. Install both APKs (watch + phone)
 2. Open **WearBubbles** on your phone
 3. Verify the watch connection status shows "Connected"
-4. Enter your BlueBubbles server URL and password (or scan a QR code)
+4. Enter your BlueBubbles server URL and password
 5. Tap **Send to Watch** — credentials are sent via the Wearable Data Layer
 6. The watch app will automatically connect and load your conversations
-
-**QR code format:** `{"url": "https://xxxx.ngrok-free.app", "password": "your-password"}`
 
 ### Option B: Manual setup on watch
 
@@ -138,7 +136,6 @@ BlueBubbles Server         v
 | Persistence | Room (SQLite), DataStore (preferences) |
 | Background sync | WorkManager (15-min interval) |
 | Image loading | Coil (with GIF decoder) |
-| QR scanning | CameraX + ML Kit Barcode |
 | Watch-phone sync | Wearable Data Layer API (MessageClient) |
 | Language | Kotlin, JDK 17 target |
 
@@ -166,7 +163,6 @@ WearBubbles/
     └── src/main/java/com/wearbubbles/companion/
         ├── ui/
         │   ├── MainScreen.kt         # Connection status, credential entry, send
-        │   ├── ScannerScreen.kt      # CameraX + ML Kit QR scanner
         │   └── Theme.kt              # Material 3 dark theme
         ├── MainActivity.kt           # Entry point
         └── MainViewModel.kt          # Watch discovery, message sending
