@@ -2,7 +2,7 @@
 
 A Wear OS app that brings iMessage to your smartwatch via [BlueBubbles](https://bluebubbles.app/).
 
-WearBubbles connects to a self-hosted BlueBubbles server to let you view conversations, read messages, send replies, and receive notifications — all from your wrist.
+WearBubbles connects to a self-hosted BlueBubbles server to let you view conversations, read messages, send replies, receive photos/gifs, and receive notifications.
 
 ## Features
 
