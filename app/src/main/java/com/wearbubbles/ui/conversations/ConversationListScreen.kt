@@ -33,7 +33,7 @@ fun ConversationListScreen(
         ),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        item {
+        item(key = "header") {
             Text(
                 text = "Messages",
                 style = MaterialTheme.typography.title3,
@@ -42,7 +42,7 @@ fun ConversationListScreen(
         }
 
         if (uiState.isLoading && uiState.chats.isEmpty()) {
-            item {
+            item(key = "loading") {
                 CircularProgressIndicator(
                     modifier = Modifier
                         .padding(top = 16.dp)
@@ -53,7 +53,7 @@ fun ConversationListScreen(
         }
 
         uiState.error?.let { error ->
-            item {
+            item(key = "error") {
                 Text(
                     text = error,
                     color = MaterialTheme.colors.error,
@@ -64,7 +64,7 @@ fun ConversationListScreen(
         }
 
         if (uiState.chats.isEmpty() && !uiState.isLoading) {
-            item {
+            item(key = "empty") {
                 Text(
                     text = "No conversations",
                     style = MaterialTheme.typography.body2,
@@ -74,7 +74,10 @@ fun ConversationListScreen(
             }
         }
 
-        items(uiState.chats.size) { index ->
+        items(
+            count = uiState.chats.size,
+            key = { uiState.chats[it].guid }
+        ) { index ->
             val chat = uiState.chats[index]
             ChatItem(
                 chat = chat,
@@ -82,9 +85,9 @@ fun ConversationListScreen(
             )
         }
 
-        item { Spacer(modifier = Modifier.height(4.dp)) }
+        item(key = "spacer") { Spacer(modifier = Modifier.height(4.dp)) }
 
-        item {
+        item(key = "settings") {
             Chip(
                 onClick = onSettingsClick,
                 label = { Text("Settings") },
@@ -100,6 +103,10 @@ private fun ChatItem(
     chat: ChatUiItem,
     onClick: () -> Unit
 ) {
+    val preview = remember(chat.lastMessage, chat.isFromMe) {
+        if (chat.isFromMe) "You: ${chat.lastMessage}" else chat.lastMessage
+    }
+
     Chip(
         onClick = onClick,
         label = {
@@ -111,7 +118,6 @@ private fun ChatItem(
             )
         },
         secondaryLabel = {
-            val preview = if (chat.isFromMe) "You: ${chat.lastMessage}" else chat.lastMessage
             Text(
                 text = preview,
                 maxLines = 1,

@@ -20,7 +20,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.wear.compose.material.*
 import androidx.wear.input.RemoteInputIntentHelper
 import androidx.wear.input.wearableExtender
-import coil.compose.AsyncImage
+import coil.compose.SubcomposeAsyncImage
 import coil.decode.GifDecoder
 import coil.request.CachePolicy
 import coil.request.ImageRequest
@@ -28,6 +28,11 @@ import com.wearbubbles.ui.theme.BlueBubble
 import com.wearbubbles.ui.theme.GrayBubble
 import java.text.SimpleDateFormat
 import java.util.*
+
+// Pre-allocate shapes to avoid reallocation on every recompose
+private val SentBubbleShape = RoundedCornerShape(16.dp, 16.dp, 4.dp, 16.dp)
+private val ReceivedBubbleShape = RoundedCornerShape(16.dp, 16.dp, 16.dp, 4.dp)
+private val ImageClipShape = RoundedCornerShape(12.dp)
 
 @Composable
 fun MessageDetailScreen(
@@ -54,10 +59,13 @@ fun MessageDetailScreen(
 
     val listState = rememberScalingLazyListState()
 
-    // Auto-scroll to bottom when new messages arrive
-    LaunchedEffect(uiState.messages.size) {
-        if (uiState.messages.isNotEmpty()) {
-            listState.animateScrollToItem(uiState.messages.size)
+    // Auto-scroll to bottom only on first load or when sending
+    val messageCount = uiState.messages.size
+    var lastScrolledCount by remember { mutableIntStateOf(0) }
+    LaunchedEffect(messageCount) {
+        if (messageCount > 0 && messageCount != lastScrolledCount) {
+            lastScrolledCount = messageCount
+            listState.scrollToItem(messageCount)
         }
     }
 
@@ -72,7 +80,7 @@ fun MessageDetailScreen(
         ),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        item {
+        item(key = "header") {
             Text(
                 text = chatName,
                 style = MaterialTheme.typography.title3,
@@ -83,7 +91,7 @@ fun MessageDetailScreen(
         }
 
         if (uiState.isLoading && uiState.messages.isEmpty()) {
-            item {
+            item(key = "loading") {
                 CircularProgressIndicator(
                     modifier = Modifier
                         .padding(top = 16.dp)
@@ -93,7 +101,10 @@ fun MessageDetailScreen(
             }
         }
 
-        items(uiState.messages.size) { index ->
+        items(
+            count = uiState.messages.size,
+            key = { uiState.messages[it].guid }
+        ) { index ->
             val message = uiState.messages[index]
             MessageBubble(
                 message = message,
@@ -103,7 +114,7 @@ fun MessageDetailScreen(
         }
 
         // Reply chip
-        item {
+        item(key = "reply") {
             Spacer(modifier = Modifier.height(4.dp))
             Chip(
                 onClick = {
@@ -135,7 +146,7 @@ fun MessageDetailScreen(
         }
 
         uiState.error?.let { error ->
-            item {
+            item(key = "error") {
                 Text(
                     text = error,
                     color = MaterialTheme.colors.error,
@@ -153,20 +164,13 @@ private fun MessageBubble(
     serverUrl: String,
     password: String
 ) {
-    val alignment = if (message.isFromMe) Alignment.CenterEnd else Alignment.CenterStart
-    val bubbleColor = if (message.isFromMe) BlueBubble else GrayBubble
-    val shape = RoundedCornerShape(
-        topStart = 16.dp,
-        topEnd = 16.dp,
-        bottomStart = if (message.isFromMe) 16.dp else 4.dp,
-        bottomEnd = if (message.isFromMe) 4.dp else 16.dp
-    )
-
     val hasAttachment = message.attachmentGuid != null
     val hasText = message.text.isNotBlank()
-
-    // Skip empty messages (no text and no attachment)
     if (!hasText && !hasAttachment) return
+
+    val alignment = if (message.isFromMe) Alignment.CenterEnd else Alignment.CenterStart
+    val bubbleColor = if (message.isFromMe) BlueBubble else GrayBubble
+    val shape = if (message.isFromMe) SentBubbleShape else ReceivedBubbleShape
 
     Box(
         modifier = Modifier
@@ -179,37 +183,21 @@ private fun MessageBubble(
                 .fillMaxWidth(0.85f)
                 .clip(shape)
                 .background(bubbleColor)
-                .padding(horizontal = if (hasAttachment) 4.dp else 10.dp, vertical = if (hasAttachment) 4.dp else 6.dp)
-        ) {
-            // Image/GIF attachment
-            if (hasAttachment) {
-                val thumbnailUrl = buildThumbnailUrl(serverUrl, password, message.attachmentGuid!!)
-                val isGif = message.attachmentMimeType == "image/gif"
-
-                AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(thumbnailUrl)
-                        .crossfade(true)
-                        .memoryCachePolicy(CachePolicy.ENABLED)
-                        .diskCachePolicy(CachePolicy.ENABLED)
-                        .apply {
-                            if (isGif) decoderFactory(GifDecoder.Factory())
-                        }
-                        .build(),
-                    contentDescription = "Image",
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 60.dp, max = 120.dp)
-                        .clip(RoundedCornerShape(12.dp)),
-                    contentScale = ContentScale.Crop
+                .padding(
+                    horizontal = if (hasAttachment) 4.dp else 10.dp,
+                    vertical = if (hasAttachment) 4.dp else 6.dp
                 )
-
-                if (hasText) {
-                    Spacer(modifier = Modifier.height(4.dp))
-                }
+        ) {
+            if (hasAttachment) {
+                AttachmentImage(
+                    serverUrl = serverUrl,
+                    password = password,
+                    attachmentGuid = message.attachmentGuid!!,
+                    mimeType = message.attachmentMimeType
+                )
+                if (hasText) Spacer(modifier = Modifier.height(4.dp))
             }
 
-            // Text
             if (hasText) {
                 Text(
                     text = message.text,
@@ -219,9 +207,8 @@ private fun MessageBubble(
                 )
             }
 
-            // Timestamp
             Text(
-                text = formatTime(message.dateCreated),
+                text = remember(message.dateCreated) { formatTime(message.dateCreated) },
                 color = MaterialTheme.colors.onPrimary.copy(alpha = 0.6f),
                 fontSize = 10.sp,
                 textAlign = if (message.isFromMe) TextAlign.End else TextAlign.Start,
@@ -233,10 +220,53 @@ private fun MessageBubble(
     }
 }
 
-private fun buildThumbnailUrl(serverUrl: String, password: String, attachmentGuid: String): String {
-    val base = serverUrl.trimEnd('/')
-    // Request height=150 thumbnail for watch screen — small but clear
-    return "$base/api/v1/attachment/$attachmentGuid/download?password=$password&height=150&quality=good"
+@Composable
+private fun AttachmentImage(
+    serverUrl: String,
+    password: String,
+    attachmentGuid: String,
+    mimeType: String?
+) {
+    val context = LocalContext.current
+    val isGif = mimeType == "image/gif"
+
+    // Remember the image request to avoid rebuilding on recompose
+    val imageRequest = remember(attachmentGuid) {
+        val url = "${serverUrl.trimEnd('/')}/api/v1/attachment/$attachmentGuid/download?password=$password&height=150&quality=good"
+        ImageRequest.Builder(context)
+            .data(url)
+            .crossfade(200)
+            .memoryCachePolicy(CachePolicy.ENABLED)
+            .diskCachePolicy(CachePolicy.ENABLED)
+            .size(300, 300)
+            .apply {
+                if (isGif) decoderFactory(GifDecoder.Factory())
+            }
+            .build()
+    }
+
+    SubcomposeAsyncImage(
+        model = imageRequest,
+        contentDescription = null,
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 60.dp, max = 120.dp)
+            .clip(ImageClipShape),
+        contentScale = ContentScale.Crop,
+        loading = {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(80.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(16.dp),
+                    strokeWidth = 2.dp
+                )
+            }
+        }
+    )
 }
 
 private fun formatTime(timestamp: Long): String {
