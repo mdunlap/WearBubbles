@@ -18,9 +18,6 @@ WearBubbles connects to a self-hosted BlueBubbles server to let you view convers
 - **Settings** — Toggle haptic feedback, view server status, reset watch data
 - **Phone companion app** — Enter credentials on your phone, view watch status dashboard, send config via Wearable Data Layer API
 
-## Screenshots
-
-*Coming soon*
 
 ## Prerequisites
 
