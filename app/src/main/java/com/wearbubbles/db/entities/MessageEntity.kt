@@ -18,5 +18,7 @@ data class MessageEntity(
     val handleAddress: String?,
     val isTemporary: Boolean = false,
     val attachmentGuid: String? = null,
-    val attachmentMimeType: String? = null
+    val attachmentMimeType: String? = null,
+    val associatedMessageGuid: String? = null,
+    val associatedMessageType: String? = null
 )

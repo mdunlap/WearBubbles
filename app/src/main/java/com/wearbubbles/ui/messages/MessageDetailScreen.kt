@@ -4,11 +4,7 @@ import android.app.RemoteInput
 import android.view.inputmethod.EditorInfo
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.*
@@ -82,13 +78,17 @@ fun MessageDetailScreen(
         )
     )
 
-    // Auto-scroll to bottom when messages change
+    // Auto-scroll to bottom when messages change (skip bulk loads like "load earlier")
     val messageCount = uiState.messages.size
     var lastScrolledCount by remember { mutableIntStateOf(0) }
     LaunchedEffect(messageCount) {
         if (messageCount > 0 && messageCount != lastScrolledCount) {
+            val delta = messageCount - lastScrolledCount
             lastScrolledCount = messageCount
-            columnState.state.scrollToItem(messageCount)
+            // Only auto-scroll on initial load or small deltas (1-3 new messages)
+            if (delta in 1..3 || delta == messageCount) {
+                columnState.state.scrollToItem(messageCount)
+            }
         }
     }
 
@@ -118,6 +118,32 @@ fun MessageDetailScreen(
                 }
             }
 
+            if (uiState.hasMoreMessages && uiState.messages.isNotEmpty()) {
+                item(key = "load_earlier") {
+                    Chip(
+                        onClick = { viewModel.loadMore() },
+                        label = {
+                            if (uiState.isLoadingMore) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    strokeWidth = 2.dp
+                                )
+                            } else {
+                                Text(
+                                    text = "Load earlier",
+                                    modifier = Modifier.fillMaxWidth(),
+                                    textAlign = TextAlign.Center,
+                                    fontSize = 12.sp
+                                )
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ChipDefaults.secondaryChipColors(),
+                        enabled = !uiState.isLoadingMore
+                    )
+                }
+            }
+
             items(
                 count = uiState.messages.size,
                 key = { uiState.messages[it].guid }
@@ -126,8 +152,7 @@ fun MessageDetailScreen(
                 MessageBubble(
                     message = message,
                     serverUrl = uiState.serverUrl,
-                    password = uiState.password,
-                    onLongPress = { guid -> viewModel.reactToMessage(guid) }
+                    password = uiState.password
                 )
             }
 
@@ -177,13 +202,11 @@ fun MessageDetailScreen(
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun MessageBubble(
     message: MessageUiItem,
     serverUrl: String,
-    password: String,
-    onLongPress: (String) -> Unit = {}
+    password: String
 ) {
     val hasAttachment = message.attachmentGuid != null
     val hasText = message.text.isNotBlank()
@@ -196,78 +219,62 @@ private fun MessageBubble(
     // Pre-compute modifiers to avoid allocation in composition
     val textPadding = if (hasAttachment) Modifier.padding(horizontal = 6.dp) else Modifier
 
-    // Heart overlay animation
-    val heartAlpha = remember { Animatable(0f) }
-    var showHeart by remember { mutableStateOf(false) }
-    LaunchedEffect(showHeart) {
-        if (showHeart) {
-            heartAlpha.snapTo(1f)
-            heartAlpha.animateTo(0f, animationSpec = tween(800))
-            showHeart = false
-        }
-    }
-
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 2.dp)
-            .combinedClickable(
-                onClick = {},
-                onLongClick = {
-                    showHeart = true
-                    onLongPress(message.guid)
-                }
-            ),
+            .padding(vertical = 2.dp),
         contentAlignment = alignment
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth(0.85f)
-                .clip(shape)
-                .background(bubbleColor)
-                .padding(
-                    horizontal = if (hasAttachment) 4.dp else 10.dp,
-                    vertical = if (hasAttachment) 4.dp else 6.dp
-                )
-        ) {
-            if (hasAttachment) {
-                AttachmentImage(
-                    serverUrl = serverUrl,
-                    password = password,
-                    attachmentGuid = message.attachmentGuid!!,
-                    mimeType = message.attachmentMimeType
-                )
-                if (hasText) Spacer(modifier = Modifier.height(4.dp))
-            }
-
-            if (hasText) {
-                Text(
-                    text = message.text,
-                    color = MaterialTheme.colors.onPrimary,
-                    fontSize = 13.sp,
-                    modifier = textPadding
-                )
-            }
-
-            Text(
-                text = remember(message.dateCreated) { formatTime(message.dateCreated) },
-                color = MaterialTheme.colors.onPrimary.copy(alpha = 0.6f),
-                fontSize = 10.sp,
-                textAlign = if (message.isFromMe) TextAlign.End else TextAlign.Start,
+        Box {
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .then(textPadding)
-            )
-        }
+                    .fillMaxWidth(0.85f)
+                    .clip(shape)
+                    .background(bubbleColor)
+                    .padding(
+                        horizontal = if (hasAttachment) 4.dp else 10.dp,
+                        vertical = if (hasAttachment) 4.dp else 6.dp
+                    )
+            ) {
+                if (hasAttachment) {
+                    AttachmentImage(
+                        serverUrl = serverUrl,
+                        password = password,
+                        attachmentGuid = message.attachmentGuid!!,
+                        mimeType = message.attachmentMimeType
+                    )
+                    if (hasText) Spacer(modifier = Modifier.height(4.dp))
+                }
 
-        // Heart overlay on long-press
-        if (heartAlpha.value > 0f) {
-            Text(
-                text = "\u2764\uFE0F",
-                fontSize = 24.sp,
-                modifier = Modifier.align(Alignment.Center),
-                color = MaterialTheme.colors.onPrimary.copy(alpha = heartAlpha.value)
-            )
+                if (hasText) {
+                    Text(
+                        text = message.text,
+                        color = MaterialTheme.colors.onPrimary,
+                        fontSize = 13.sp,
+                        modifier = textPadding
+                    )
+                }
+
+                Text(
+                    text = remember(message.dateCreated) { formatTime(message.dateCreated) },
+                    color = MaterialTheme.colors.onPrimary.copy(alpha = 0.6f),
+                    fontSize = 10.sp,
+                    textAlign = if (message.isFromMe) TextAlign.End else TextAlign.Start,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .then(textPadding)
+                )
+            }
+
+            if (message.hasLoveReaction) {
+                Text(
+                    text = "❤️",
+                    fontSize = 10.sp,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(end = 2.dp)
+                )
+            }
         }
     }
 }

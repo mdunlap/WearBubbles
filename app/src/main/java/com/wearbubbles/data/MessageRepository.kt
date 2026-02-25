@@ -3,8 +3,10 @@ package com.wearbubbles.data
 import android.util.Log
 import com.wearbubbles.api.BlueBubblesApi
 import com.wearbubbles.api.dto.MessageDto
+import com.wearbubbles.api.dto.MessageQueryRequest
 import com.wearbubbles.api.dto.ReactRequest
 import com.wearbubbles.api.dto.SendMessageRequest
+import com.wearbubbles.api.dto.WhereClause
 import com.wearbubbles.db.MessageDao
 import com.wearbubbles.db.entities.MessageEntity
 import com.wearbubbles.socket.SocketEvent
@@ -25,6 +27,9 @@ class MessageRepository(
     companion object {
         private const val TAG = "MessageRepository"
     }
+
+    private var hasMore = true
+    fun hasMoreMessages() = hasMore
 
     init {
         scope.launch(Dispatchers.IO) {
@@ -51,15 +56,58 @@ class MessageRepository(
     suspend fun refreshMessages(chatGuid: String) {
         try {
             val response = api.getMessages(
-                chatGuid = chatGuid,
                 password = password,
-                limit = 15
+                body = MessageQueryRequest(
+                    limit = 15,
+                    where = listOf(chatWhereClause(chatGuid))
+                )
             )
+            hasMore = response.data.size >= 15
             val entities = response.data.map { it.toEntity(chatGuid) }
-            messageDao.upsertMessages(entities)
+            messageDao.upsertMessages(preserveAttachments(chatGuid, entities))
             messageDao.pruneOldMessages(chatGuid)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to refresh messages for $chatGuid", e)
+        }
+    }
+
+    suspend fun loadMoreMessages(chatGuid: String) {
+        try {
+            val currentCount = messageDao.getMessageCount(chatGuid)
+            val response = api.getMessages(
+                password = password,
+                body = MessageQueryRequest(
+                    limit = 15,
+                    offset = currentCount,
+                    where = listOf(chatWhereClause(chatGuid))
+                )
+            )
+            hasMore = response.data.size >= 15
+            val entities = response.data.map { it.toEntity(chatGuid) }
+            messageDao.upsertMessages(preserveAttachments(chatGuid, entities))
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to load more messages for $chatGuid", e)
+        }
+    }
+
+    private fun chatWhereClause(chatGuid: String) = WhereClause(
+        statement = "chat.guid = :val",
+        args = mapOf("val" to chatGuid)
+    )
+
+    /** If API response lacks attachment info for a message we already have it for, keep existing */
+    private suspend fun preserveAttachments(chatGuid: String, entities: List<MessageEntity>): List<MessageEntity> {
+        val existing = messageDao.getAttachmentInfo(chatGuid).associateBy { it.guid }
+        return entities.map { entity ->
+            val cached = existing[entity.guid]
+            if (entity.attachmentGuid == null && cached != null) {
+                entity.copy(
+                    attachmentGuid = cached.attachmentGuid,
+                    attachmentMimeType = cached.attachmentMimeType
+                )
+            } else {
+                entity
+            }
         }
     }
 
@@ -130,7 +178,9 @@ class MessageRepository(
             dateCreated = dateCreated ?: System.currentTimeMillis(),
             handleAddress = handle?.address,
             attachmentGuid = imageAttachment?.guid,
-            attachmentMimeType = imageAttachment?.mimeType
+            attachmentMimeType = imageAttachment?.mimeType,
+            associatedMessageGuid = associatedMessageGuid,
+            associatedMessageType = associatedMessageType
         )
     }
 }

@@ -9,6 +9,7 @@ import io.socket.client.Socket
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import okhttp3.OkHttpClient
 import org.json.JSONArray
 
 sealed class SocketEvent {
@@ -34,18 +35,22 @@ class SocketManager {
     var isConnected: Boolean = false
         private set
 
-    fun connect(serverUrl: String, password: String) {
+    fun connect(serverUrl: String, password: String, okHttpClient: OkHttpClient? = null) {
         disconnect()
 
         try {
             val opts = IO.Options().apply {
                 forceNew = true
                 reconnection = true
-                reconnectionAttempts = 10
+                reconnectionAttempts = Int.MAX_VALUE
                 reconnectionDelay = 2000
                 reconnectionDelayMax = 30000
                 query = "password=$password"
-                transports = arrayOf("polling", "websocket")
+                transports = arrayOf("websocket")
+                if (okHttpClient != null) {
+                    callFactory = okHttpClient
+                    webSocketFactory = okHttpClient
+                }
             }
 
             val normalizedUrl = serverUrl.trimEnd('/')
@@ -63,7 +68,9 @@ class SocketManager {
                 }
 
                 on(Socket.EVENT_CONNECT_ERROR) { args ->
-                    Log.e(TAG, "Socket connection error: ${args.firstOrNull()}")
+                    val err = args.firstOrNull()
+                    val cause = (err as? Throwable)?.cause
+                    Log.e(TAG, "Socket connection error: $err cause: $cause", err as? Throwable)
                     isConnected = false
                 }
 

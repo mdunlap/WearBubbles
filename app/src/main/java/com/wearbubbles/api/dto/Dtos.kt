@@ -38,6 +38,19 @@ data class ChatDto(
 
 // -- Messages --
 
+data class MessageQueryRequest(
+    val limit: Int = 15,
+    val offset: Int = 0,
+    val sort: String = "DESC",
+    val with: List<String> = listOf("attachment", "chat", "handle"),
+    val where: List<WhereClause>
+)
+
+data class WhereClause(
+    val statement: String,
+    val args: Map<String, String>
+)
+
 data class MessageQueryResponse(
     val status: Int,
     val data: List<MessageDto>

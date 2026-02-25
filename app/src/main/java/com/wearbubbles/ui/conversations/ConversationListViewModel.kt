@@ -4,6 +4,9 @@ import android.app.Application
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import coil.Coil
+import coil.request.CachePolicy
+import coil.request.ImageRequest
 import com.wearbubbles.WearBubblesApp
 import com.wearbubbles.api.ApiClient
 import com.wearbubbles.data.ChatRepository
@@ -79,8 +82,10 @@ class ConversationListViewModel(application: Application) : AndroidViewModel(app
                 // 2. Load contacts from API (awaited — ensures names are ready before showing chats)
                 contactRepository.loadContacts()
 
-                // 3. Connect socket
-                socketManager.connect(serverUrl, password)
+                // 3. Ensure socket is connected (service may have already connected it)
+                if (!socketManager.isConnected) {
+                    socketManager.connect(serverUrl, password, ApiClient.getHttpClient())
+                }
 
                 // 4. NOW observe chats — contacts are fully loaded, names will resolve correctly
                 launch {
@@ -89,6 +94,7 @@ class ConversationListViewModel(application: Application) : AndroidViewModel(app
                             chats = entities.map { it.toUiItem() },
                             isLoading = false
                         )
+                        prefetchAttachmentImages(entities, serverUrl, password)
                     }
                 }
             } catch (e: Exception) {
@@ -134,6 +140,23 @@ class ConversationListViewModel(application: Application) : AndroidViewModel(app
 
     fun getPassword(): String? = cachedPassword
 
+    private fun prefetchAttachmentImages(chats: List<ChatEntity>, serverUrl: String, password: String) {
+        val context = getApplication<Application>()
+        val imageLoader = Coil.imageLoader(context)
+        chats.take(10)
+            .filter { it.lastMessageAttachmentGuid != null }
+            .forEach { chat ->
+                val url = "${serverUrl.trimEnd('/')}/api/v1/attachment/${chat.lastMessageAttachmentGuid}/download?password=$password"
+                val request = ImageRequest.Builder(context)
+                    .data(url)
+                    .size(250, 250)
+                    .memoryCachePolicy(CachePolicy.ENABLED)
+                    .diskCachePolicy(CachePolicy.ENABLED)
+                    .build()
+                imageLoader.enqueue(request)
+            }
+    }
+
     // Non-suspend: uses in-memory contact cache — zero DB round-trips
     private fun ChatEntity.toUiItem(): ChatUiItem {
         return ChatUiItem(
@@ -150,8 +173,5 @@ class ConversationListViewModel(application: Application) : AndroidViewModel(app
         )
     }
 
-    override fun onCleared() {
-        super.onCleared()
-        socketManager.disconnect()
-    }
+    // Socket lifecycle is managed by MessageListenerService — don't disconnect here
 }

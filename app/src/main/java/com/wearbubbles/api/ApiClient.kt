@@ -42,6 +42,8 @@ object ApiClient {
         return api!!
     }
 
+    fun getHttpClient(): OkHttpClient? = httpClient
+
     fun reset() {
         api = null
         currentBaseUrl = null

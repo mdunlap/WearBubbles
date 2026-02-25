@@ -23,7 +23,8 @@ data class MessageUiItem(
     val dateCreated: Long,
     val isTemporary: Boolean = false,
     val attachmentGuid: String? = null,
-    val attachmentMimeType: String? = null
+    val attachmentMimeType: String? = null,
+    val hasLoveReaction: Boolean = false
 )
 
 @Immutable
@@ -31,6 +32,8 @@ data class MessageDetailUiState(
     val messages: List<MessageUiItem> = emptyList(),
     val isLoading: Boolean = true,
     val isSending: Boolean = false,
+    val isLoadingMore: Boolean = false,
+    val hasMoreMessages: Boolean = true,
     val error: String? = null,
     val serverUrl: String = "",
     val password: String = ""
@@ -80,8 +83,20 @@ class MessageDetailViewModel(application: Application) : AndroidViewModel(applic
                 // Start observing Room IMMEDIATELY — shows cached messages instantly
                 launch {
                     messageRepository.getMessages(chatGuid).collect { entities ->
+                        // Build set of message GUIDs that have love reactions
+                        // associatedMessageGuid format: "p:0/ORIGINAL_GUID"
+                        val lovedGuids = entities
+                            .filter { it.associatedMessageType == "2000" }
+                            .mapNotNull { it.associatedMessageGuid?.substringAfterLast("/") }
+                            .toSet()
+
+                        // Filter out reaction messages, map to UI items with love info
+                        val messages = entities
+                            .filter { it.associatedMessageGuid == null }
+                            .map { it.toUiItem(hasLoveReaction = it.guid in lovedGuids) }
+
                         _uiState.value = _uiState.value.copy(
-                            messages = entities.map { it.toUiItem() },
+                            messages = messages,
                             isLoading = false
                         )
                     }
@@ -91,6 +106,9 @@ class MessageDetailViewModel(application: Application) : AndroidViewModel(applic
                 launch {
                     Log.d("MessageDetailVM", "Fetching messages for $chatGuid")
                     messageRepository.refreshMessages(chatGuid)
+                    _uiState.value = _uiState.value.copy(
+                        hasMoreMessages = messageRepository.hasMoreMessages()
+                    )
                 }
 
                 // Mark chat as read in background
@@ -107,6 +125,19 @@ class MessageDetailViewModel(application: Application) : AndroidViewModel(applic
                     error = e.message
                 )
             }
+        }
+    }
+
+    fun loadMore() {
+        viewModelScope.launch {
+            if (!::messageRepository.isInitialized) return@launch
+            if (_uiState.value.isLoadingMore || !_uiState.value.hasMoreMessages) return@launch
+            _uiState.value = _uiState.value.copy(isLoadingMore = true)
+            messageRepository.loadMoreMessages(chatGuid)
+            _uiState.value = _uiState.value.copy(
+                isLoadingMore = false,
+                hasMoreMessages = messageRepository.hasMoreMessages()
+            )
         }
     }
 
@@ -133,7 +164,7 @@ class MessageDetailViewModel(application: Application) : AndroidViewModel(applic
         }
     }
 
-    private fun MessageEntity.toUiItem(): MessageUiItem {
+    private fun MessageEntity.toUiItem(hasLoveReaction: Boolean = false): MessageUiItem {
         return MessageUiItem(
             guid = guid,
             text = text ?: "",
@@ -141,7 +172,8 @@ class MessageDetailViewModel(application: Application) : AndroidViewModel(applic
             dateCreated = dateCreated,
             isTemporary = isTemporary,
             attachmentGuid = attachmentGuid,
-            attachmentMimeType = attachmentMimeType
+            attachmentMimeType = attachmentMimeType,
+            hasLoveReaction = hasLoveReaction
         )
     }
 }

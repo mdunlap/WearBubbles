@@ -2,6 +2,24 @@
 
 All notable changes to WearBubbles will be documented in this file.
 
+## [0.3.0] - 2026-02-24
+
+### Watch app
+- Foreground service keeps socket alive for real-time notifications even when app is closed
+- Tapping a notification opens directly to that conversation
+- Love reactions from others now show as a heart on the original message (instead of "Loved ..." text)
+- "Load earlier" chip to load older messages when scrolling up
+- Photo prefetch: preloads recent attachment thumbnails on the conversation list for instant display
+- Fixed photos not loading (switched to correct BlueBubbles message query API)
+- Fixed photos disappearing when navigating away and back
+- Runtime POST_NOTIFICATIONS permission request for Android 13+
+- Improved socket reconnection (infinite retries, websocket-only transport, shared OkHttpClient)
+
+### Removed
+- Long-press heart react (unreliable on Wear OS scroll surfaces)
+
+---
+
 ## [0.2.0] - 2026-02-24
 
 ### Watch app

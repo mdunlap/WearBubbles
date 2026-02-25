@@ -17,5 +17,7 @@ data class ChatEntity(
     val lastMessageText: String?,
     val lastMessageDate: Long?,
     val lastMessageIsFromMe: Boolean?,
-    val hasUnreadMessage: Boolean = false
+    val hasUnreadMessage: Boolean = false,
+    val lastMessageAttachmentGuid: String? = null,
+    val lastMessageAttachmentMimeType: String? = null
 )

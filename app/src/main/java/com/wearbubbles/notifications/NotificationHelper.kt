@@ -17,18 +17,30 @@ import kotlinx.coroutines.flow.first
 object NotificationHelper {
 
     private const val CHANNEL_ID = "new_messages"
+    const val SERVICE_CHANNEL_ID = "message_listener_service"
 
     fun createNotificationChannel(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
+            val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+            val messageChannel = NotificationChannel(
                 CHANNEL_ID,
                 "New Messages",
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
                 description = "Notifications for new iMessages"
             }
-            val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            manager.createNotificationChannel(channel)
+            manager.createNotificationChannel(messageChannel)
+
+            val serviceChannel = NotificationChannel(
+                SERVICE_CHANNEL_ID,
+                "Message Listener",
+                NotificationManager.IMPORTANCE_MIN
+            ).apply {
+                description = "Keeps message listener running"
+                setShowBadge(false)
+            }
+            manager.createNotificationChannel(serviceChannel)
         }
     }
 
@@ -42,6 +54,7 @@ object NotificationHelper {
 
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            putExtra("chatGuid", chatGuid)
         }
         val pendingIntent = PendingIntent.getActivity(
             context, chatGuid.hashCode(), intent,

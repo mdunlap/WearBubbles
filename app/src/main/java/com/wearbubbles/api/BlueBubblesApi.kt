@@ -14,14 +14,10 @@ interface BlueBubblesApi {
         @Body body: ChatQueryRequest
     ): ChatQueryResponse
 
-    @GET("/api/v1/chat/{guid}/message")
+    @POST("/api/v1/message/query")
     suspend fun getMessages(
-        @Path("guid") chatGuid: String,
         @Query("password") password: String,
-        @Query("offset") offset: Int = 0,
-        @Query("limit") limit: Int = 15,
-        @Query("sort") sort: String = "DESC",
-        @Query("with[]") with: List<String> = listOf("chat", "handle", "attachment")
+        @Body body: MessageQueryRequest
     ): MessageQueryResponse
 
     @POST("/api/v1/message/text")

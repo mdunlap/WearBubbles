@@ -42,13 +42,21 @@ class ChatRepository(
                         val chatGuid = event.message.chats?.firstOrNull()?.guid ?: return@collect
                         val existing = chatDao.getChatByGuid(chatGuid)
                         if (existing != null) {
+                            val imageAttachment = event.message.attachments?.firstOrNull { att ->
+                                att.hideAttachment != true &&
+                                att.mimeType != null &&
+                                att.guid != null &&
+                                att.mimeType.startsWith("image/")
+                            }
                             chatDao.upsertChat(
                                 existing.copy(
                                     lastMessageText = event.message.text
                                         ?: if (event.message.attachments?.isNotEmpty() == true) "Attachment" else null,
                                     lastMessageDate = event.message.dateCreated,
                                     lastMessageIsFromMe = event.message.isFromMe,
-                                    hasUnreadMessage = !event.message.isFromMe
+                                    hasUnreadMessage = !event.message.isFromMe,
+                                    lastMessageAttachmentGuid = imageAttachment?.guid ?: existing.lastMessageAttachmentGuid,
+                                    lastMessageAttachmentMimeType = imageAttachment?.mimeType ?: existing.lastMessageAttachmentMimeType
                                 )
                             )
                         } else {
@@ -135,6 +143,12 @@ class ChatRepository(
 
     private fun ChatDto.toEntity(): ChatEntity {
         val addresses = participants?.joinToString(",") { it.address } ?: ""
+        val imageAttachment = lastMessage?.attachments?.firstOrNull { att ->
+            att.hideAttachment != true &&
+            att.mimeType != null &&
+            att.guid != null &&
+            att.mimeType.startsWith("image/")
+        }
         return ChatEntity(
             guid = guid,
             chatIdentifier = chatIdentifier,
@@ -144,7 +158,9 @@ class ChatRepository(
                 ?: if (lastMessage?.attachments?.isNotEmpty() == true) "Attachment" else null,
             lastMessageDate = lastMessage?.dateCreated,
             lastMessageIsFromMe = lastMessage?.isFromMe,
-            hasUnreadMessage = hasUnreadMessage ?: false
+            hasUnreadMessage = hasUnreadMessage ?: false,
+            lastMessageAttachmentGuid = imageAttachment?.guid,
+            lastMessageAttachmentMimeType = imageAttachment?.mimeType
         )
     }
 }

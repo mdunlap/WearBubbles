@@ -184,33 +184,29 @@ private fun ChatItem(
         if (chat.isFromMe) "You: ${chat.lastMessage}" else chat.lastMessage
     }
 
-    Box(
+    Chip(
+        onClick = onClick,
+        label = {
+            Text(
+                text = chat.displayName,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                fontWeight = if (chat.hasUnread) FontWeight.Bold else FontWeight.Normal
+            )
+        },
+        secondaryLabel = {
+            Text(
+                text = preview,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        },
         modifier = Modifier
             .fillMaxWidth()
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongClick
-            )
-    ) {
-        Chip(
-            onClick = {},
-            label = {
-                Text(
-                    text = chat.displayName,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    fontWeight = if (chat.hasUnread) FontWeight.Bold else FontWeight.Normal
-                )
-            },
-            secondaryLabel = {
-                Text(
-                    text = preview,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            },
-            modifier = Modifier.fillMaxWidth(),
-            colors = ChipDefaults.secondaryChipColors()
-        )
-    }
+            ),
+        colors = ChipDefaults.secondaryChipColors()
+    )
 }

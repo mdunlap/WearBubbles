@@ -12,8 +12,9 @@ WearBubbles connects to a self-hosted BlueBubbles server to let you view convers
 - **Read & reply** — View full message threads and send replies using the on-watch keyboard
 - **Image & GIF support** — View image and GIF attachments inline with EXIF rotation
 - **Real-time updates** — WebSocket connection delivers new messages instantly
-- **Notifications** — Real-time push notifications via Socket.IO with haptic feedback
-- **Heart react** — Long-press any message to send a love tapback
+- **Notifications** — Foreground service keeps the socket alive for instant notifications, even when the app is closed or the watch is on cellular
+- **Reactions** — Love reactions from others display as a heart on the original message
+- **Message history** — "Load earlier" chip to browse older messages
 - **Settings** — Toggle haptic feedback, view server status, reset watch data
 - **Phone companion app** — Enter credentials on your phone, view watch status dashboard, send config via Wearable Data Layer API
 
@@ -158,7 +159,7 @@ BlueBubbles Server         v
 | State | ViewModels + Kotlin StateFlow |
 | Networking | Retrofit 2 + OkHttp (REST), Socket.IO (WebSocket) |
 | Persistence | Room (SQLite), DataStore (preferences) |
-| Background sync | WorkManager (15-min interval) |
+| Background sync | Foreground service (real-time), WorkManager (15-min fallback) |
 | Image loading | Coil (with GIF decoder) |
 | Watch-phone sync | Wearable Data Layer API (MessageClient) |
 | Language | Kotlin, JDK 17 target |
@@ -180,6 +181,7 @@ WearBubbles/
 │       │   ├── messages/             # Message thread screen
 │       │   ├── settings/             # Settings screen (haptics, status, reset)
 │       │   └── theme/                # Wear OS color theme
+│       ├── service/                  # Foreground service for persistent socket
 │       ├── worker/                   # Background message sync (WorkManager)
 │       ├── DataLayerListenerService.kt  # Receives credentials from phone
 │       ├── MainActivity.kt           # Entry point
@@ -202,7 +204,7 @@ WearBubbles uses the following BlueBubbles REST endpoints:
 |---|---|
 | `POST /api/v1/ping` | Validate server connection |
 | `POST /api/v1/chat/query` | Fetch conversation list |
-| `GET /api/v1/chat/{guid}/message` | Fetch messages for a chat |
+| `POST /api/v1/message/query` | Fetch messages for a chat (with attachments) |
 | `POST /api/v1/message/text` | Send a message (via AppleScript) |
 | `POST /api/v1/message/react` | Send a tapback reaction (heart) |
 | `POST /api/v1/chat/{guid}/read` | Mark a conversation as read |
@@ -215,7 +217,7 @@ Real-time events are received over Socket.IO: `new-message`, `updated-message`, 
 
 | Component | Version |
 |---|---|
-| BlueBubbles Server | 1.9.1 |
+| BlueBubbles Server | 1.9.9 |
 | Wear OS | 5 (Android 14, Pixel Watch 4) |
 | Phone | Android 14 (Galaxy Z Fold 6) |
 

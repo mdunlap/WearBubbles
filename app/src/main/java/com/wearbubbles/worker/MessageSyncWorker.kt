@@ -44,12 +44,17 @@ class MessageSyncWorker(
     }
 
     override suspend fun doWork(): Result {
+        Log.d(TAG, "doWork() started")
         val settingsDataStore = SettingsDataStore(applicationContext)
-        if (!settingsDataStore.hasCredentials()) return Result.success()
+        if (!settingsDataStore.hasCredentials()) {
+            Log.d(TAG, "No credentials, skipping")
+            return Result.success()
+        }
 
         return try {
             val serverUrl = settingsDataStore.getServerUrl()
             val password = settingsDataStore.getPassword()
+            Log.d(TAG, "Fetching chats from $serverUrl")
             val api = ApiClient.getInstance(serverUrl)
             val db = AppDatabase.getInstance(applicationContext)
 
@@ -78,9 +83,11 @@ class MessageSyncWorker(
                 }
             }
 
+            Log.d(TAG, "Found $newMessageCount unread chats")
             if (newMessageCount > 0) {
                 val title = if (newMessageCount == 1) "New message from $lastSenderName" else "$newMessageCount new messages"
                 val text = if (newMessageCount == 1) "Tap to view" else "Tap to view conversations"
+                Log.d(TAG, "Posting notification: $title")
                 NotificationHelper.showNewMessageNotification(
                     applicationContext, title, text, "worker_sync"
                 )

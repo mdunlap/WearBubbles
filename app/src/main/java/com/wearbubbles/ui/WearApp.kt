@@ -24,13 +24,21 @@ private fun decodeGuid(encoded: String): String =
     String(Base64.decode(encoded, Base64.URL_SAFE or Base64.NO_WRAP))
 
 @Composable
-fun WearApp(hasCredentials: Boolean) {
+fun WearApp(hasCredentials: Boolean, openChatGuid: String? = null) {
     WearBubblesTheme {
         AppScaffold {
             val navController = rememberSwipeDismissableNavController()
             val startDestination = if (hasCredentials) "conversations" else "setup"
 
             val conversationListViewModel: ConversationListViewModel = viewModel()
+
+            // Navigate to chat if opened from notification
+            LaunchedEffect(openChatGuid) {
+                if (openChatGuid != null && hasCredentials) {
+                    val encoded = encodeGuid(openChatGuid)
+                    navController.navigate("messages/$encoded")
+                }
+            }
 
             SwipeDismissableNavHost(
                 navController = navController,
