@@ -25,12 +25,19 @@ WearBubbles connects to a self-hosted BlueBubbles server to let you view convers
 - The server must be reachable from your watch's network (e.g. via ngrok, Tailscale, or local network)
 - A **Wear OS 3.0+** smartwatch (API 30 / Android 11)
 - An **Android phone** (API 28+ / Android 9) for the companion app
-- **Android SDK** with build tools installed
-- **JDK 17**
 
-## Building from Source
+## Installation
 
-### 1. Install dependencies
+### Option A: Download APKs directly (easiest)
+
+1. On your **Android phone**, download both APKs from the [latest release](https://github.com/mdunlap/WearBubbles/releases/latest):
+   - [WearBubbles-watch](https://github.com/mdunlap/WearBubbles/releases/latest/download/WearBubbles-watch-0.3.0-release.apk) — install via [Wear Installer](https://play.google.com/store/apps/details?id=org.nickas21.wearinstaller) or ADB
+   - [WearBubbles-phone](https://github.com/mdunlap/WearBubbles/releases/latest/download/WearBubbles-phone-0.3.0-release.apk) — open the file to install directly on your phone
+2. You may need to enable "Install from unknown sources" in your phone's settings
+
+### Option B: Build from source and install via ADB
+
+#### 1. Install build dependencies
 
 **macOS (Homebrew):**
 
@@ -50,57 +57,49 @@ yes | $ANDROID_HOME/bin/sdkmanager --licenses
 
 Install [Android Studio](https://developer.android.com/studio) or the [command-line tools](https://developer.android.com/studio#command-line-tools-only), plus JDK 17 from your package manager.
 
-### 2. Clone the repository
+#### 2. Clone and build
 
 ```bash
 git clone https://github.com/mdunlap/WearBubbles.git
 cd WearBubbles
-```
-
-### 3. Build
-
-```bash
 JAVA_HOME=/opt/homebrew/opt/openjdk@17 \
 ANDROID_HOME=/opt/homebrew/share/android-commandlinetools \
-./gradlew assembleDebug
+./gradlew assembleRelease
 ```
 
 This builds both modules:
-- Watch APK: `app/build/outputs/apk/debug/app-debug.apk`
-- Phone APK: `mobile/build/outputs/apk/debug/mobile-debug.apk`
+- Watch APK: `app/build/outputs/apk/release/WearBubbles-watch-*-release.apk`
+- Phone APK: `mobile/build/outputs/apk/release/WearBubbles-phone-*-release.apk`
 
 > Adjust `JAVA_HOME` and `ANDROID_HOME` to match your system if not using Homebrew defaults.
 
-### 4. Install via ADB
+#### 3. Install via ADB
 
 [ADB (Android Debug Bridge)](https://developer.android.com/tools/adb) is a command-line tool for communicating with Android devices. If you don't have it already:
 
 - **macOS:** `brew install android-platform-tools`
 - **Windows/Linux:** Download [SDK Platform Tools](https://developer.android.com/tools/releases/platform-tools#downloads) and add to your PATH
 
-#### Enable developer options
+**Enable developer options:**
 
-**Phone:** Settings > About phone > tap "Build number" 7 times > go back to Settings > Developer options > enable "USB debugging"
+- **Phone:** Settings > About phone > tap "Build number" 7 times > Developer options > enable "USB debugging"
+- **Watch:** Settings > About watch > tap "Build number" 7 times > Developer options > enable "ADB debugging" and "Debug over Wi-Fi"
 
-**Wear OS watch:** Settings > About watch > tap "Build number" 7 times > go back to Settings > Developer options > enable "ADB debugging" and "Debug over Wi-Fi"
-
-#### Connect via USB
-
-Plug in your phone via USB cable. Approve the prompt on the device, then:
+**Install phone APK via USB:**
 
 ```bash
-adb devices          # verify it shows up
-adb install mobile/build/outputs/apk/debug/mobile-debug.apk
+adb devices          # verify phone shows up
+adb install mobile/build/outputs/apk/release/WearBubbles-phone-*-release.apk
 ```
 
-#### Connect via Wi-Fi (required for watches)
+**Install watch APK via Wi-Fi:**
 
 On the watch, go to Developer options > Debug over Wi-Fi. It will show an IP and port for pairing.
 
 ```bash
 adb pair <ip>:<pairing-port>       # enter the pairing code shown on watch
 adb connect <ip>:<connect-port>    # the connect port differs from the pairing port
-adb -s <ip>:<connect-port> install app/build/outputs/apk/debug/app-debug.apk
+adb -s <ip>:<connect-port> install app/build/outputs/apk/release/WearBubbles-watch-*-release.apk
 ```
 
 > Tip: Run `adb devices` to see all connected devices and their identifiers.
