@@ -219,7 +219,7 @@ Real-time events are received over Socket.IO: `new-message`, `updated-message`, 
 |---|---|
 | BlueBubbles Server | 1.9.9 |
 | Wear OS | 5 (Android 14, Pixel Watch 4) |
-| Phone | Android 14 (Galaxy Z Fold 6) |
+| Phone | Android 14 (Galaxy Z Fold 7)|
 
 ## Configuration
 
@@ -229,4 +229,4 @@ No config files or environment variables are needed at build time.
 
 ## License
 
-This is a private project. All rights reserved.
+This project is licensed under the MIT License
