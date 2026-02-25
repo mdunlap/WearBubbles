@@ -74,11 +74,11 @@ fun MessageDetailScreen(
     val columnState = rememberResponsiveColumnState(
         contentPadding = ScalingLazyColumnDefaults.padding(
             first = ItemType.Text,
-            last = ItemType.Chip
+            last = ItemType.SingleButton
         )
     )
 
-    // Auto-scroll to bottom when messages change (skip bulk loads like "load earlier")
+    // Auto-scroll to reply chip when messages change (skip bulk loads like "load earlier")
     val messageCount = uiState.messages.size
     var lastScrolledCount by remember { mutableIntStateOf(0) }
     LaunchedEffect(messageCount) {
@@ -87,7 +87,10 @@ fun MessageDetailScreen(
             lastScrolledCount = messageCount
             // Only auto-scroll on initial load or small deltas (1-3 new messages)
             if (delta in 1..3 || delta == messageCount) {
-                columnState.state.scrollToItem(messageCount)
+                // Scroll past messages to the reply chip so it's centered on screen
+                // Items: header + (load_earlier?) + messages + reply + (error?)
+                val replyIndex = 1 + (if (uiState.hasMoreMessages) 1 else 0) + messageCount
+                columnState.state.scrollToItem(replyIndex)
             }
         }
     }
