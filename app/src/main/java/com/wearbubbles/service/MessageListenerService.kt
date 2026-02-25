@@ -91,14 +91,24 @@ class MessageListenerService : Service() {
     }
 
     private suspend fun showMessageNotification(event: SocketEvent.NewMessage) {
-        val chatGuid = event.message.chats?.firstOrNull()?.guid ?: return
-        val senderAddress = event.message.handle?.address
+        val msg = event.message
+        val chatGuid = msg.chats?.firstOrNull()?.guid ?: return
+        val senderAddress = msg.handle?.address
         val senderName = if (senderAddress != null) {
             contactRepository?.getDisplayName(senderAddress) ?: senderAddress
         } else {
             "Unknown"
         }
-        val text = event.message.text ?: "New message"
+
+        val isReaction = msg.associatedMessageType != null
+        val hasAttachment = msg.attachments?.any { it.mimeType != null } == true
+
+        val text = when {
+            isReaction -> "Loved a message"
+            !msg.text.isNullOrBlank() -> msg.text
+            hasAttachment -> "Sent a photo"
+            else -> "New message"
+        }
 
         NotificationHelper.showNewMessageNotification(
             this, senderName, text, chatGuid
