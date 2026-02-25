@@ -6,8 +6,6 @@ All notable changes to WearBubbles will be documented in this file.
 
 ### Watch app
 - Foreground service keeps socket alive for real-time notifications even when app is closed
-- Tapping a notification opens directly to that conversation
-- Love reactions from others now show as a heart on the original message (instead of "Loved ..." text)
 - "Load earlier" chip to load older messages when scrolling up
 - Photo prefetch: preloads recent attachment thumbnails on the conversation list for instant display
 - Fixed photos not loading (switched to correct BlueBubbles message query API)
