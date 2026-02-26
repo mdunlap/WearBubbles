@@ -166,7 +166,13 @@ class ConversationListViewModel(application: Application) : AndroidViewModel(app
             } else {
                 displayName ?: chatIdentifier ?: guid
             },
-            lastMessage = lastMessageText ?: "",
+            lastMessage = lastMessageText?.ifBlank { null }
+                ?: when {
+                    lastMessageAttachmentMimeType?.startsWith("image/") == true -> "Photo"
+                    lastMessageAttachmentMimeType?.startsWith("video/") == true -> "Video"
+                    lastMessageAttachmentMimeType != null -> "Attachment"
+                    else -> ""
+                },
             timestamp = lastMessageDate,
             isFromMe = lastMessageIsFromMe ?: false,
             hasUnread = hasUnreadMessage

@@ -24,7 +24,8 @@ data class MessageUiItem(
     val isTemporary: Boolean = false,
     val attachmentGuid: String? = null,
     val attachmentMimeType: String? = null,
-    val hasLoveReaction: Boolean = false
+    val hasLoveReaction: Boolean = false,
+    val sendFailed: Boolean = false
 )
 
 @Immutable
@@ -149,6 +150,19 @@ class MessageDetailViewModel(application: Application) : AndroidViewModel(applic
         }
     }
 
+    fun retryMessage(guid: String) {
+        viewModelScope.launch {
+            val entity = db.messageDao().getMessageByGuid(guid) ?: return@launch
+            _uiState.value = _uiState.value.copy(error = null)
+            if (::messageRepository.isInitialized) {
+                val success = messageRepository.retrySendMessage(entity)
+                if (!success) {
+                    _uiState.value = _uiState.value.copy(error = "Failed to send")
+                }
+            }
+        }
+    }
+
     fun sendMessage(text: String) {
         if (text.isBlank()) return
 
@@ -173,7 +187,8 @@ class MessageDetailViewModel(application: Application) : AndroidViewModel(applic
             isTemporary = isTemporary,
             attachmentGuid = attachmentGuid,
             attachmentMimeType = attachmentMimeType,
-            hasLoveReaction = hasLoveReaction
+            hasLoveReaction = hasLoveReaction,
+            sendFailed = sendFailed
         )
     }
 }

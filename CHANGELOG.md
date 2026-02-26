@@ -2,6 +2,22 @@
 
 All notable changes to WearBubbles will be documented in this file.
 
+## [0.4.0] - 2026-02-25
+
+### Watch app
+- Photo/Video/Attachment labels in conversation preview (instead of blank for image-only messages)
+- Message send failure with retry: failed messages show red with "Failed — tap to retry" instead of silently disappearing
+- Update checker in Settings screen
+
+### Phone companion app
+- Fixed crash when tapping "Send to Watch" (Compose BOM version mismatch causing R8 to strip animation methods)
+
+### Bug fixes
+- Fixed R8 stripping Gson deserialization for credential sync payload (watch reported error on setup)
+- Added ProGuard keep rules for both watch and phone release builds
+
+---
+
 ## [0.3.0] - 2026-02-24
 
 ### Watch app

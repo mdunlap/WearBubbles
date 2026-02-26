@@ -28,6 +28,9 @@
 -keep class io.socket.** { *; }
 -dontwarn io.socket.**
 
+# DataLayerListenerService payload
+-keep class com.wearbubbles.DataLayerListenerService$SetupPayload { *; }
+
 # Room
 -keep class * extends androidx.room.RoomDatabase
 -dontwarn androidx.room.paging.**

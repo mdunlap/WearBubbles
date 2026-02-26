@@ -5,6 +5,7 @@ import android.view.inputmethod.EditorInfo
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.*
@@ -155,7 +156,8 @@ fun MessageDetailScreen(
                 MessageBubble(
                     message = message,
                     serverUrl = uiState.serverUrl,
-                    password = uiState.password
+                    password = uiState.password,
+                    onRetry = { viewModel.retryMessage(message.guid) }
                 )
             }
 
@@ -209,14 +211,19 @@ fun MessageDetailScreen(
 private fun MessageBubble(
     message: MessageUiItem,
     serverUrl: String,
-    password: String
+    password: String,
+    onRetry: () -> Unit = {}
 ) {
     val hasAttachment = message.attachmentGuid != null
     val hasText = message.text.isNotBlank()
     if (!hasText && !hasAttachment) return
 
     val alignment = if (message.isFromMe) Alignment.CenterEnd else Alignment.CenterStart
-    val bubbleColor = if (message.isFromMe) BlueBubble else GrayBubble
+    val bubbleColor = if (message.sendFailed) {
+        MaterialTheme.colors.error.copy(alpha = 0.4f)
+    } else {
+        if (message.isFromMe) BlueBubble else GrayBubble
+    }
     val shape = if (message.isFromMe) SentBubbleShape else ReceivedBubbleShape
 
     // Pre-compute modifiers to avoid allocation in composition
@@ -228,7 +235,9 @@ private fun MessageBubble(
             .padding(vertical = 2.dp),
         contentAlignment = alignment
     ) {
-        Box {
+        Box(
+            modifier = if (message.sendFailed) Modifier.clickable { onRetry() } else Modifier
+        ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth(0.85f)
@@ -267,6 +276,18 @@ private fun MessageBubble(
                         .fillMaxWidth()
                         .then(textPadding)
                 )
+
+                if (message.sendFailed) {
+                    Text(
+                        text = "Failed \u2014 tap to retry",
+                        color = MaterialTheme.colors.error,
+                        fontSize = 10.sp,
+                        textAlign = TextAlign.End,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .then(textPadding)
+                    )
+                }
             }
 
             if (message.hasLoveReaction) {

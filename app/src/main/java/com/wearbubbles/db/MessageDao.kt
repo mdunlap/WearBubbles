@@ -36,6 +36,9 @@ interface MessageDao {
 
     @Query("SELECT guid, attachmentGuid, attachmentMimeType FROM messages WHERE chatGuid = :chatGuid AND attachmentGuid IS NOT NULL")
     suspend fun getAttachmentInfo(chatGuid: String): List<AttachmentInfo>
+
+    @Query("SELECT * FROM messages WHERE guid = :guid")
+    suspend fun getMessageByGuid(guid: String): MessageEntity?
 }
 
 data class AttachmentInfo(

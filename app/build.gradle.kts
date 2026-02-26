@@ -12,12 +12,12 @@ android {
         applicationId = "com.wearbubbles"
         minSdk = 30
         targetSdk = 34
-        versionCode = 3
-        versionName = "0.3.0"
+        versionCode = 4
+        versionName = "0.4.0"
     }
 
     base {
-        archivesName = "WearBubbles-watch-0.3.0"
+        archivesName = "WearBubbles-watch-0.4.0"
     }
 
     signingConfigs {
@@ -54,6 +54,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     composeOptions {

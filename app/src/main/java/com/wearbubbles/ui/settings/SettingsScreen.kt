@@ -25,6 +25,8 @@ fun SettingsScreen(
     val hapticEnabled by viewModel.hapticEnabled.collectAsStateWithLifecycle()
     val serverUrl by viewModel.serverUrl.collectAsStateWithLifecycle()
     val isConnected = viewModel.isConnected
+    val updateAvailable by viewModel.updateAvailable.collectAsStateWithLifecycle()
+    val currentVersion = viewModel.currentVersion
 
     val columnState = rememberResponsiveColumnState(
         contentPadding = ScalingLazyColumnDefaults.padding(
@@ -89,6 +91,22 @@ fun SettingsScreen(
                                 fontSize = 12.sp
                             )
                         }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ChipDefaults.secondaryChipColors()
+                )
+            }
+
+            // Version info
+            item(key = "version") {
+                Chip(
+                    onClick = {},
+                    label = { Text("v$currentVersion") },
+                    secondaryLabel = {
+                        Text(
+                            if (updateAvailable != null) "v$updateAvailable available \u2014 update via phone or GitHub"
+                            else "Up to date"
+                        )
                     },
                     modifier = Modifier.fillMaxWidth(),
                     colors = ChipDefaults.secondaryChipColors()

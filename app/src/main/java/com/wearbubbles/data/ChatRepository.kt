@@ -42,6 +42,9 @@ class ChatRepository(
                         val chatGuid = event.message.chats?.firstOrNull()?.guid ?: return@collect
                         val existing = chatDao.getChatByGuid(chatGuid)
                         if (existing != null) {
+                            val firstAttachment = event.message.attachments?.firstOrNull { att ->
+                                att.hideAttachment != true && att.mimeType != null && att.guid != null
+                            }
                             val imageAttachment = event.message.attachments?.firstOrNull { att ->
                                 att.hideAttachment != true &&
                                 att.mimeType != null &&
@@ -50,13 +53,13 @@ class ChatRepository(
                             }
                             chatDao.upsertChat(
                                 existing.copy(
-                                    lastMessageText = event.message.text
+                                    lastMessageText = event.message.text?.ifBlank { null }
                                         ?: if (event.message.attachments?.isNotEmpty() == true) "Attachment" else null,
                                     lastMessageDate = event.message.dateCreated,
                                     lastMessageIsFromMe = event.message.isFromMe,
                                     hasUnreadMessage = !event.message.isFromMe,
                                     lastMessageAttachmentGuid = imageAttachment?.guid ?: existing.lastMessageAttachmentGuid,
-                                    lastMessageAttachmentMimeType = imageAttachment?.mimeType ?: existing.lastMessageAttachmentMimeType
+                                    lastMessageAttachmentMimeType = firstAttachment?.mimeType ?: existing.lastMessageAttachmentMimeType
                                 )
                             )
                         } else {
@@ -143,6 +146,9 @@ class ChatRepository(
 
     private fun ChatDto.toEntity(): ChatEntity {
         val addresses = participants?.joinToString(",") { it.address } ?: ""
+        val firstAttachment = lastMessage?.attachments?.firstOrNull { att ->
+            att.hideAttachment != true && att.mimeType != null && att.guid != null
+        }
         val imageAttachment = lastMessage?.attachments?.firstOrNull { att ->
             att.hideAttachment != true &&
             att.mimeType != null &&
@@ -154,13 +160,13 @@ class ChatRepository(
             chatIdentifier = chatIdentifier,
             displayName = displayName,
             participantAddresses = addresses,
-            lastMessageText = lastMessage?.text
+            lastMessageText = lastMessage?.text?.ifBlank { null }
                 ?: if (lastMessage?.attachments?.isNotEmpty() == true) "Attachment" else null,
             lastMessageDate = lastMessage?.dateCreated,
             lastMessageIsFromMe = lastMessage?.isFromMe,
             hasUnreadMessage = hasUnreadMessage ?: false,
             lastMessageAttachmentGuid = imageAttachment?.guid,
-            lastMessageAttachmentMimeType = imageAttachment?.mimeType
+            lastMessageAttachmentMimeType = firstAttachment?.mimeType
         )
     }
 }

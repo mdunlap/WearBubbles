@@ -11,12 +11,12 @@ android {
         applicationId = "com.wearbubbles"
         minSdk = 28
         targetSdk = 34
-        versionCode = 3
-        versionName = "0.3.0"
+        versionCode = 4
+        versionName = "0.4.0"
     }
 
     base {
-        archivesName = "WearBubbles-phone-0.3.0"
+        archivesName = "WearBubbles-phone-0.4.0"
     }
 
     signingConfigs {
@@ -62,7 +62,7 @@ android {
 
 dependencies {
     // Compose + Material 3
-    implementation(platform("androidx.compose:compose-bom:2024.01.00"))
+    implementation(platform("androidx.compose:compose-bom:2024.02.00"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.runtime:runtime")

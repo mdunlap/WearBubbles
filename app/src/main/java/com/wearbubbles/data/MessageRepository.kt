@@ -144,7 +144,31 @@ class MessageRepository(
             response.status == 200
         } catch (e: Exception) {
             Log.e(TAG, "Failed to send message", e)
-            messageDao.deleteMessage(tempGuid)
+            messageDao.upsertMessage(tempMessage.copy(sendFailed = true))
+            false
+        }
+    }
+
+    suspend fun retrySendMessage(message: MessageEntity): Boolean {
+        messageDao.upsertMessage(message.copy(sendFailed = false))
+
+        return try {
+            val response = api.sendMessage(
+                password = password,
+                body = SendMessageRequest(
+                    chatGuid = message.chatGuid,
+                    message = message.text ?: "",
+                    tempGuid = message.guid
+                )
+            )
+            if (response.data != null) {
+                messageDao.deleteMessage(message.guid)
+                messageDao.upsertMessage(response.data.toEntity(message.chatGuid))
+            }
+            response.status == 200
+        } catch (e: Exception) {
+            Log.e(TAG, "Retry failed", e)
+            messageDao.upsertMessage(message.copy(sendFailed = true))
             false
         }
     }

@@ -20,5 +20,6 @@ data class MessageEntity(
     val attachmentGuid: String? = null,
     val attachmentMimeType: String? = null,
     val associatedMessageGuid: String? = null,
-    val associatedMessageType: String? = null
+    val associatedMessageType: String? = null,
+    val sendFailed: Boolean = false
 )
