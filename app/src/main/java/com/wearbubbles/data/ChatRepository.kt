@@ -26,13 +26,9 @@ class ChatRepository(
 ) {
     companion object {
         private const val TAG = "ChatRepository"
-        private const val PAGE_SIZE = 15
     }
 
     val chats: Flow<List<ChatEntity>> = chatDao.getAllChats()
-
-    private var totalLoaded = 0
-    private var hasMore = true
 
     init {
         scope.launch(Dispatchers.IO) {
@@ -91,38 +87,14 @@ class ChatRepository(
         try {
             val response = api.getChats(
                 password = password,
-                body = ChatQueryRequest(limit = PAGE_SIZE, offset = 0)
+                body = ChatQueryRequest(limit = 1000, offset = 0)
             )
             val entities = response.data.map { it.toEntity() }
             chatDao.upsertChats(entities)
-            totalLoaded = entities.size
-            hasMore = entities.size >= PAGE_SIZE
         } catch (e: Exception) {
             Log.e(TAG, "Failed to refresh chats", e)
         }
     }
-
-    suspend fun loadMore(): Boolean {
-        if (!hasMore) return false
-        try {
-            val response = api.getChats(
-                password = password,
-                body = ChatQueryRequest(limit = PAGE_SIZE, offset = totalLoaded)
-            )
-            val entities = response.data.map { it.toEntity() }
-            if (entities.isNotEmpty()) {
-                chatDao.upsertChats(entities)
-                totalLoaded += entities.size
-            }
-            hasMore = entities.size >= PAGE_SIZE
-            return entities.isNotEmpty()
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to load more chats", e)
-            return false
-        }
-    }
-
-    fun hasMoreChats(): Boolean = hasMore
 
     suspend fun markChatRead(chatGuid: String) {
         try {

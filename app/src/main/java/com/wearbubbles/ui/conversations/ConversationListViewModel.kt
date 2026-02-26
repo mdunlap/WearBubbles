@@ -32,8 +32,6 @@ data class ChatUiItem(
 data class ConversationListUiState(
     val chats: List<ChatUiItem> = emptyList(),
     val isLoading: Boolean = true,
-    val isLoadingMore: Boolean = false,
-    val hasMore: Boolean = true,
     val error: String? = null
 )
 
@@ -111,22 +109,8 @@ class ConversationListViewModel(application: Application) : AndroidViewModel(app
             _uiState.value = _uiState.value.copy(isLoading = true)
             if (::chatRepository.isInitialized) {
                 chatRepository.refreshChats()
-                _uiState.value = _uiState.value.copy(hasMore = chatRepository.hasMoreChats())
             }
             _uiState.value = _uiState.value.copy(isLoading = false)
-        }
-    }
-
-    fun loadMore() {
-        viewModelScope.launch {
-            if (!::chatRepository.isInitialized) return@launch
-            if (_uiState.value.isLoadingMore || !_uiState.value.hasMore) return@launch
-            _uiState.value = _uiState.value.copy(isLoadingMore = true)
-            chatRepository.loadMore()
-            _uiState.value = _uiState.value.copy(
-                isLoadingMore = false,
-                hasMore = chatRepository.hasMoreChats()
-            )
         }
     }
 

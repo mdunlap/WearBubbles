@@ -4,7 +4,7 @@ A Wear OS app that brings iMessage to your smartwatch via [BlueBubbles](https://
 
 WearBubbles connects to a self-hosted BlueBubbles server to let you view conversations, read messages, send replies, receive photos/gifs, and receive notifications.
 
-**Download:** [Watch APK](https://github.com/mdunlap/WearBubbles/releases/latest/download/WearBubbles-watch-0.4.0-release.apk) | [Phone APK](https://github.com/mdunlap/WearBubbles/releases/latest/download/WearBubbles-phone-0.4.0-release.apk) | [Changelog](CHANGELOG.md)
+**Download:** [Watch APK](https://github.com/mdunlap/WearBubbles/releases/latest/download/WearBubbles-watch-0.4.1-release.apk) | [Phone APK](https://github.com/mdunlap/WearBubbles/releases/latest/download/WearBubbles-phone-0.4.1-release.apk) | [Changelog](CHANGELOG.md)
 
 ## Features
 
@@ -31,8 +31,8 @@ WearBubbles connects to a self-hosted BlueBubbles server to let you view convers
 ### Option A: Download APKs directly (easiest)
 
 1. On your **Android phone**, download both APKs from the [latest release](https://github.com/mdunlap/WearBubbles/releases/latest):
-   - [WearBubbles-watch](https://github.com/mdunlap/WearBubbles/releases/latest/download/WearBubbles-watch-0.4.0-release.apk) — install via [Wear Installer](https://play.google.com/store/apps/details?id=org.nickas21.wearinstaller) or ADB
-   - [WearBubbles-phone](https://github.com/mdunlap/WearBubbles/releases/latest/download/WearBubbles-phone-0.4.0-release.apk) — open the file to install directly on your phone
+   - [WearBubbles-watch](https://github.com/mdunlap/WearBubbles/releases/latest/download/WearBubbles-watch-0.4.1-release.apk) — install via [Wear Installer](https://play.google.com/store/apps/details?id=org.nickas21.wearinstaller) or ADB
+   - [WearBubbles-phone](https://github.com/mdunlap/WearBubbles/releases/latest/download/WearBubbles-phone-0.4.1-release.apk) — open the file to install directly on your phone
 2. You may need to enable "Install from unknown sources" in your phone's settings
 
 ### Option B: Build from source and install via ADB

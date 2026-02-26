@@ -133,31 +133,7 @@ fun ConversationListScreen(
                 }
             }
 
-            if (uiState.hasMore && uiState.chats.isNotEmpty()) {
-                item(key = "load_more") {
-                    if (uiState.isLoadingMore) {
-                        CircularProgressIndicator(
-                            modifier = Modifier
-                                .padding(vertical = 8.dp)
-                                .size(20.dp),
-                            strokeWidth = 2.dp
-                        )
-                    } else {
-                        Chip(
-                            onClick = { viewModel.loadMore() },
-                            label = {
-                                Text(
-                                    text = "Load more",
-                                    modifier = Modifier.fillMaxWidth(),
-                                    textAlign = TextAlign.Center
-                                )
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = ChipDefaults.secondaryChipColors()
-                        )
-                    }
-                }
-            }
+
 
             item(key = "spacer") { Spacer(modifier = Modifier.height(4.dp)) }
 

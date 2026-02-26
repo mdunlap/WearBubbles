@@ -2,6 +2,17 @@
 
 All notable changes to WearBubbles will be documented in this file.
 
+## [0.4.1] - 2026-02-26
+
+### Watch app
+- MessagingStyle notifications (conversation layout matching Google Messages)
+- Inline reply from notifications without opening the app
+- Multiple messages from the same chat stack into one notification
+- Load all conversations at once instead of paginated (fixes stale/missing chats)
+- Removed "Load more" button from conversation list
+
+---
+
 ## [0.4.0] - 2026-02-25
 
 ### Watch app
