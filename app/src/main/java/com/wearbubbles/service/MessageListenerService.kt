@@ -11,11 +11,8 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.wearbubbles.WearBubblesApp
 import com.wearbubbles.api.ApiClient
-import com.wearbubbles.data.ContactRepository
 import com.wearbubbles.data.SettingsDataStore
-import com.wearbubbles.db.AppDatabase
 import com.wearbubbles.notifications.NotificationHelper
-import com.wearbubbles.socket.SocketEvent
 import kotlinx.coroutines.*
 
 class MessageListenerService : Service() {
@@ -31,7 +28,6 @@ class MessageListenerService : Service() {
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private var contactRepository: ContactRepository? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -62,58 +58,21 @@ class MessageListenerService : Service() {
 
                 val serverUrl = settings.getServerUrl()
                 val password = settings.getPassword()
-                val api = ApiClient.getInstance(serverUrl)
-                val db = AppDatabase.getInstance(this@MessageListenerService)
 
-                contactRepository = ContactRepository(api, password, db.contactDao())
-                contactRepository?.loadFromCache()
-
+                // Keep socket alive — notifications are handled by ChatRepository
                 val socketManager = (application as WearBubblesApp).socketManager
                 if (!socketManager.isConnected) {
                     socketManager.connect(serverUrl, password, ApiClient.getHttpClient())
                 }
 
-                // Listen for new messages and show notifications
-                socketManager.events.collect { event ->
-                    when (event) {
-                        is SocketEvent.NewMessage -> {
-                            if (!event.message.isFromMe) {
-                                showMessageNotification(event)
-                            }
-                        }
-                        else -> {}
-                    }
+                // Stay alive while socket is connected
+                while (true) {
+                    delay(60_000)
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error in message listener", e)
             }
         }
-    }
-
-    private suspend fun showMessageNotification(event: SocketEvent.NewMessage) {
-        val msg = event.message
-        val chatGuid = msg.chats?.firstOrNull()?.guid ?: return
-        val senderAddress = msg.handle?.address
-        val senderName = if (senderAddress != null) {
-            contactRepository?.getDisplayName(senderAddress) ?: senderAddress
-        } else {
-            "Unknown"
-        }
-
-        val isReaction = msg.associatedMessageType != null
-        val hasAttachment = msg.attachments?.any { it.mimeType != null } == true
-
-        val text = when {
-            isReaction -> "Loved a message"
-            !msg.text.isNullOrBlank() -> msg.text
-            hasAttachment -> "Sent a photo"
-            else -> "New message"
-        }
-
-        NotificationHelper.showNewMessageNotification(
-            this, senderName, text, chatGuid
-        )
-        NotificationHelper.vibrateIfEnabled(this)
     }
 
     private fun buildServiceNotification(): Notification {
