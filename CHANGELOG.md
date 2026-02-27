@@ -2,6 +2,14 @@
 
 All notable changes to WearBubbles will be documented in this file.
 
+## [0.4.2] - 2026-02-27
+
+### Watch app
+- Fullscreen image viewer: tap any image to view full screen with crown zoom, finger pan, and tap to exit
+- Fixed duplicate notifications from socket event replay
+
+---
+
 ## [0.4.1] - 2026-02-26
 
 ### Watch app

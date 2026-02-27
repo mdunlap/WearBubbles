@@ -6,12 +6,24 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.drag
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.rotary.onRotaryScrollEvent
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
@@ -37,6 +49,7 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.*
+import kotlin.math.abs
 
 // Pre-allocate shapes (immutable, thread-safe)
 private val SentBubbleShape = RoundedCornerShape(16.dp, 16.dp, 4.dp, 16.dp)
@@ -57,6 +70,10 @@ fun MessageDetailScreen(
     viewModel: MessageDetailViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    // Fullscreen image viewer state
+    var fullscreenImageUrl by remember { mutableStateOf<String?>(null) }
+    var fullscreenMimeType by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(chatGuid) {
         viewModel.initialize(chatGuid, socketManager)
@@ -157,7 +174,11 @@ fun MessageDetailScreen(
                     message = message,
                     serverUrl = uiState.serverUrl,
                     password = uiState.password,
-                    onRetry = { viewModel.retryMessage(message.guid) }
+                    onRetry = { viewModel.retryMessage(message.guid) },
+                    onImageTap = { url, mime ->
+                        fullscreenImageUrl = url
+                        fullscreenMimeType = mime
+                    }
                 )
             }
 
@@ -205,6 +226,18 @@ fun MessageDetailScreen(
             }
         }
     }
+
+    // Fullscreen image viewer overlay — must be after ScreenScaffold to render on top
+    fullscreenImageUrl?.let { url ->
+        FullscreenImageViewer(
+            imageUrl = url,
+            mimeType = fullscreenMimeType,
+            onDismiss = {
+                fullscreenImageUrl = null
+                fullscreenMimeType = null
+            }
+        )
+    }
 }
 
 @Composable
@@ -212,7 +245,8 @@ private fun MessageBubble(
     message: MessageUiItem,
     serverUrl: String,
     password: String,
-    onRetry: () -> Unit = {}
+    onRetry: () -> Unit = {},
+    onImageTap: (url: String, mimeType: String?) -> Unit = { _, _ -> }
 ) {
     val hasAttachment = message.attachmentGuid != null
     val hasText = message.text.isNotBlank()
@@ -249,11 +283,13 @@ private fun MessageBubble(
                     )
             ) {
                 if (hasAttachment) {
+                    val imageUrl = "${serverUrl.trimEnd('/')}/api/v1/attachment/${message.attachmentGuid!!}/download?password=$password"
                     AttachmentImage(
                         serverUrl = serverUrl,
                         password = password,
-                        attachmentGuid = message.attachmentGuid!!,
-                        mimeType = message.attachmentMimeType
+                        attachmentGuid = message.attachmentGuid,
+                        mimeType = message.attachmentMimeType,
+                        onClick = { onImageTap(imageUrl, message.attachmentMimeType) }
                     )
                     if (hasText) Spacer(modifier = Modifier.height(4.dp))
                 }
@@ -308,7 +344,8 @@ private fun AttachmentImage(
     serverUrl: String,
     password: String,
     attachmentGuid: String,
-    mimeType: String?
+    mimeType: String?,
+    onClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val isGif = mimeType == "image/gif"
@@ -334,9 +371,102 @@ private fun AttachmentImage(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 60.dp, max = 120.dp)
-            .clip(ImageClipShape),
+            .clip(ImageClipShape)
+            .clickable { onClick() },
         contentScale = ContentScale.Crop
     )
+}
+
+@Composable
+private fun FullscreenImageViewer(
+    imageUrl: String,
+    mimeType: String?,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    val isGif = mimeType == "image/gif"
+
+    var scale by remember { mutableFloatStateOf(1f) }
+    var offset by remember { mutableStateOf(Offset.Zero) }
+
+    val imageRequest = remember(imageUrl) {
+        ImageRequest.Builder(context)
+            .data(imageUrl)
+            .crossfade(false)
+            .memoryCachePolicy(CachePolicy.ENABLED)
+            .diskCachePolicy(CachePolicy.ENABLED)
+            .allowHardware(true)
+            .apply {
+                if (isGif) decoderFactory(GifDecoder.Factory())
+            }
+            .build()
+    }
+
+    val focusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black)
+            .onRotaryScrollEvent { event ->
+                val zoomDelta = if (event.verticalScrollPixels > 0) 1.1f else 0.9f
+                scale = (scale * zoomDelta).coerceIn(0.5f, 5f)
+                if (scale <= 1f) offset = Offset.Zero
+                true
+            }
+            .focusRequester(focusRequester)
+            .focusable()
+            .pointerInput(scale) {
+                awaitEachGesture {
+                    val down = awaitFirstDown()
+                    var totalDrag = Offset.Zero
+                    drag(down.id) { change ->
+                        val dragAmount = change.positionChange()
+                        change.consume()
+                        totalDrag += dragAmount
+                        if (scale > 1f) {
+                            offset += dragAmount
+                        }
+                    }
+                    // Swipe right to dismiss, or tap to dismiss
+                    if (scale <= 1f && totalDrag.x > 60f && abs(totalDrag.x) > abs(totalDrag.y)) {
+                        onDismiss()
+                    } else if (totalDrag == Offset.Zero) {
+                        onDismiss()
+                    }
+                }
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        AsyncImage(
+            model = imageRequest,
+            contentDescription = null,
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                    translationX = if (scale > 1f) offset.x else 0f
+                    translationY = if (scale > 1f) offset.y else 0f
+                },
+            contentScale = ContentScale.Fit
+        )
+
+        if (scale <= 1f) {
+            Text(
+                text = "tap to exit",
+                color = Color.White.copy(alpha = 0.25f),
+                fontSize = 10.sp,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 8.dp)
+            )
+        }
+    }
 }
 
 // Thread-safe time formatting using java.time (no SimpleDateFormat)

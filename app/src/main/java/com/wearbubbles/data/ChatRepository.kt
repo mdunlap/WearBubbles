@@ -30,12 +30,22 @@ class ChatRepository(
 
     val chats: Flow<List<ChatEntity>> = chatDao.getAllChats()
 
+    // Track recently seen message guids to prevent duplicate notifications
+    private val recentMessageGuids = LinkedHashSet<String>()
+    private val maxRecentGuids = 200
+
     init {
         scope.launch(Dispatchers.IO) {
             socketManager.events.collect { event ->
                 when (event) {
                     is SocketEvent.NewMessage -> {
                         val chatGuid = event.message.chats?.firstOrNull()?.guid ?: return@collect
+                        val messageGuid = event.message.guid
+                        val isDuplicate = !recentMessageGuids.add(messageGuid)
+                        if (recentMessageGuids.size > maxRecentGuids) {
+                            recentMessageGuids.remove(recentMessageGuids.first())
+                        }
+                        if (isDuplicate) return@collect
                         val existing = chatDao.getChatByGuid(chatGuid)
                         if (existing != null) {
                             val firstAttachment = event.message.attachments?.firstOrNull { att ->
