@@ -6,7 +6,8 @@ All notable changes to WearBubbles will be documented in this file.
 
 ### Watch app
 - Fullscreen image viewer: tap any image to view full screen with crown zoom, finger pan, and tap to exit
-- Fixed duplicate notifications from socket event replay
+- Fixed duplicate notifications from redundant socket listeners
+- Fixed reactions (tapbacks) showing as phantom messages in conversation list
 
 ---
 

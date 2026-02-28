@@ -46,33 +46,37 @@ class ChatRepository(
                             recentMessageGuids.remove(recentMessageGuids.first())
                         }
                         if (isDuplicate) return@collect
+                        val isReaction = event.message.associatedMessageType != null
                         val existing = chatDao.getChatByGuid(chatGuid)
                         if (existing != null) {
-                            val firstAttachment = event.message.attachments?.firstOrNull { att ->
-                                att.hideAttachment != true && att.mimeType != null && att.guid != null
-                            }
-                            val imageAttachment = event.message.attachments?.firstOrNull { att ->
-                                att.hideAttachment != true &&
-                                att.mimeType != null &&
-                                att.guid != null &&
-                                att.mimeType.startsWith("image/")
-                            }
-                            chatDao.upsertChat(
-                                existing.copy(
-                                    lastMessageText = event.message.text?.ifBlank { null }
-                                        ?: if (event.message.attachments?.isNotEmpty() == true) "Attachment" else null,
-                                    lastMessageDate = event.message.dateCreated,
-                                    lastMessageIsFromMe = event.message.isFromMe,
-                                    hasUnreadMessage = !event.message.isFromMe,
-                                    lastMessageAttachmentGuid = imageAttachment?.guid ?: existing.lastMessageAttachmentGuid,
-                                    lastMessageAttachmentMimeType = firstAttachment?.mimeType ?: existing.lastMessageAttachmentMimeType
+                            // Don't update chat preview for reactions (tapbacks)
+                            if (!isReaction) {
+                                val firstAttachment = event.message.attachments?.firstOrNull { att ->
+                                    att.hideAttachment != true && att.mimeType != null && att.guid != null
+                                }
+                                val imageAttachment = event.message.attachments?.firstOrNull { att ->
+                                    att.hideAttachment != true &&
+                                    att.mimeType != null &&
+                                    att.guid != null &&
+                                    att.mimeType.startsWith("image/")
+                                }
+                                chatDao.upsertChat(
+                                    existing.copy(
+                                        lastMessageText = event.message.text?.ifBlank { null }
+                                            ?: if (event.message.attachments?.isNotEmpty() == true) "Attachment" else null,
+                                        lastMessageDate = event.message.dateCreated,
+                                        lastMessageIsFromMe = event.message.isFromMe,
+                                        hasUnreadMessage = !event.message.isFromMe,
+                                        lastMessageAttachmentGuid = imageAttachment?.guid ?: existing.lastMessageAttachmentGuid,
+                                        lastMessageAttachmentMimeType = firstAttachment?.mimeType ?: existing.lastMessageAttachmentMimeType
+                                    )
                                 )
-                            )
+                            }
                         } else {
                             refreshChats()
                         }
 
-                        if (!event.message.isFromMe) {
+                        if (!event.message.isFromMe && !isReaction) {
                             val address = event.message.handle?.address
                             val senderName = if (address != null) {
                                 contactRepository.getDisplayNameSync(address)
