@@ -1,0 +1,35 @@
+<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">WearBubbles icon</title>
+  <desc id="desc">A round smartwatch whose face is a blue message bubble with a typing indicator.</desc>
+  <defs>
+    <linearGradient id="bubble" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5DB9FF"/>
+      <stop offset="1" stop-color="#0A7CFF"/>
+    </linearGradient>
+    <linearGradient id="band" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2C3A52"/>
+      <stop offset="1" stop-color="#1C2638"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Watch band straps: sides flare outward as they sweep into the face -->
+  <path d="M 172 88 C 172 120 160 135 150 152 L 362 152 C 352 135 340 120 340 88 L 340 44 Q 340 16 312 16 L 200 16 Q 172 16 172 44 Z" fill="url(#band)"/>
+  <path d="M 172 424 C 172 392 166 377 160 360 L 362 360 C 352 377 340 392 340 424 L 340 468 Q 340 496 312 496 L 200 496 Q 172 496 172 468 Z" fill="url(#band)"/>
+
+  <!-- Crown -->
+  <rect x="388" y="230" width="40" height="52" rx="12" fill="#1C2638"/>
+
+  <!-- Bubble tail (short, curling slightly upward; curves meet only at the tip) -->
+  <path d="M 150 338 Q 110 368 80 374 Q 135 396 185 355 Z" fill="#0A7CFF"/>
+
+  <!-- Watch face / message bubble -->
+  <circle cx="256" cy="256" r="150" fill="url(#bubble)"/>
+
+  <!-- Soft glass highlight -->
+  <ellipse cx="256" cy="168" rx="108" ry="52" fill="#FFFFFF" opacity="0.16"/>
+
+  <!-- Typing indicator -->
+  <circle cx="196" cy="256" r="20" fill="#FFFFFF" opacity="0.6"/>
+  <circle cx="256" cy="256" r="20" fill="#FFFFFF" opacity="0.8"/>
+  <circle cx="316" cy="256" r="20" fill="#FFFFFF"/>
+</svg>
