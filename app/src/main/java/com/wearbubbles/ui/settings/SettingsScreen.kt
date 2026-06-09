@@ -25,7 +25,7 @@ fun SettingsScreen(
     val hapticEnabled by viewModel.hapticEnabled.collectAsStateWithLifecycle()
     val serverUrl by viewModel.serverUrl.collectAsStateWithLifecycle()
     val isConnected = viewModel.isConnected
-    val updateAvailable by viewModel.updateAvailable.collectAsStateWithLifecycle()
+    val updateInfo by viewModel.updateInfo.collectAsStateWithLifecycle()
     val currentVersion = viewModel.currentVersion
 
     val columnState = rememberResponsiveColumnState(
@@ -99,12 +99,14 @@ fun SettingsScreen(
 
             // Version info
             item(key = "version") {
+                val update = updateInfo
                 Chip(
-                    onClick = {},
+                    onClick = { viewModel.openReleaseOnPhone() },
+                    enabled = update != null,
                     label = { Text("v$currentVersion") },
                     secondaryLabel = {
                         Text(
-                            if (updateAvailable != null) "v$updateAvailable available \u2014 update via phone or GitHub"
+                            if (update != null) "v${update.version} available \u2014 tap to open on phone"
                             else "Up to date"
                         )
                     },

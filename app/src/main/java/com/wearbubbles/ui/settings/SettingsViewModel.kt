@@ -7,6 +7,8 @@ import com.wearbubbles.WearBubblesApp
 import com.wearbubbles.BuildConfig
 import com.wearbubbles.data.SettingsDataStore
 import com.wearbubbles.data.UpdateChecker
+import com.wearbubbles.data.UpdateInfo
+import com.wearbubbles.notifications.RemoteLauncher
 import com.wearbubbles.db.AppDatabase
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -28,14 +30,18 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     val currentVersion: String = BuildConfig.VERSION_NAME
 
-    private val _updateAvailable = MutableStateFlow<String?>(null)
-    val updateAvailable: StateFlow<String?> = _updateAvailable.asStateFlow()
+    private val _updateInfo = MutableStateFlow<UpdateInfo?>(null)
+    val updateInfo: StateFlow<UpdateInfo?> = _updateInfo.asStateFlow()
 
     init {
         viewModelScope.launch {
-            val info = UpdateChecker.check(getApplication())
-            _updateAvailable.value = info?.version
+            _updateInfo.value = UpdateChecker.check(getApplication())
         }
+    }
+
+    fun openReleaseOnPhone() {
+        val info = _updateInfo.value ?: return
+        RemoteLauncher.openUrlOnPhone(getApplication(), info.url)
     }
 
     fun toggleHaptic() {

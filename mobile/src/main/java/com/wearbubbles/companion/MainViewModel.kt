@@ -29,6 +29,7 @@ data class UiState(
     val sendStatus: SendStatus = SendStatus.Idle,
     val isSynced: Boolean = false,
     val watchStatus: WatchStatus? = null,
+    val updateInfo: UpdateInfo? = null,
 )
 
 enum class SendStatus {
@@ -55,6 +56,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application),
         messageClient.addListener(this)
         refreshWatchConnection()
         requestStatus()
+        checkForUpdate()
+    }
+
+    private fun checkForUpdate() {
+        viewModelScope.launch {
+            val info = UpdateChecker.check()
+            if (info != null) {
+                _state.value = _state.value.copy(updateInfo = info)
+            }
+        }
     }
 
     override fun onCleared() {

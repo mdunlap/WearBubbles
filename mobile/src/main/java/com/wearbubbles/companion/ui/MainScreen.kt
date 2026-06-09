@@ -54,8 +54,14 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
+import com.wearbubbles.companion.BuildConfig
 import com.wearbubbles.companion.MainViewModel
 import com.wearbubbles.companion.SendStatus
+import com.wearbubbles.companion.UpdateInfo
 import com.wearbubbles.companion.WatchStatus
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -136,6 +142,12 @@ fun MainScreen(viewModel: MainViewModel) {
                     status = watchStatus,
                     onRefresh = { viewModel.requestStatus() },
                 )
+            }
+
+            // Update available card
+            val updateInfo = state.updateInfo
+            if (updateInfo != null) {
+                UpdateCard(updateInfo)
             }
 
             // Server credentials
@@ -309,7 +321,53 @@ fun MainScreen(viewModel: MainViewModel) {
                 }
             }
 
+            Text(
+                text = "WearBubbles v${BuildConfig.VERSION_NAME}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.Center,
+            )
+
             Spacer(Modifier.height(32.dp))
+        }
+    }
+}
+
+@Composable
+private fun UpdateCard(info: UpdateInfo) {
+    val context = LocalContext.current
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+        ),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Update available",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
+                Text(
+                    text = "v${BuildConfig.VERSION_NAME} → v${info.version}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
+            }
+            Button(
+                onClick = {
+                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(info.url)))
+                },
+            ) {
+                Text("Download")
+            }
         }
     }
 }

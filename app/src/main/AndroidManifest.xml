@@ -46,6 +46,10 @@
             android:name=".notifications.ReplyReceiver"
             android:exported="false" />
 
+        <receiver
+            android:name=".notifications.OpenOnPhoneReceiver"
+            android:exported="false" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

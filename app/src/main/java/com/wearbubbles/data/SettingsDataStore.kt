@@ -23,6 +23,7 @@ class SettingsDataStore(private val context: Context) {
         private val LAST_UPDATE_CHECK = longPreferencesKey("last_update_check")
         private val LATEST_VERSION = stringPreferencesKey("latest_version")
         private val LATEST_VERSION_URL = stringPreferencesKey("latest_version_url")
+        private val NOTIFIED_UPDATE_VERSION = stringPreferencesKey("notified_update_version")
     }
 
     val serverUrl: Flow<String> = context.dataStore.data.map { prefs ->
@@ -67,6 +68,14 @@ class SettingsDataStore(private val context: Context) {
     suspend fun getLatestVersion(): String? = context.dataStore.data.first()[LATEST_VERSION]
 
     suspend fun getLatestVersionUrl(): String? = context.dataStore.data.first()[LATEST_VERSION_URL]
+
+    suspend fun getNotifiedUpdateVersion(): String? = context.dataStore.data.first()[NOTIFIED_UPDATE_VERSION]
+
+    suspend fun setNotifiedUpdateVersion(version: String) {
+        context.dataStore.edit { prefs ->
+            prefs[NOTIFIED_UPDATE_VERSION] = version
+        }
+    }
 
     suspend fun saveUpdateCheck(version: String, url: String) {
         context.dataStore.edit { prefs ->

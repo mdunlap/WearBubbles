@@ -7,6 +7,7 @@ import com.wearbubbles.api.ApiClient
 import com.wearbubbles.api.dto.ChatQueryRequest
 import com.wearbubbles.data.ContactRepository
 import com.wearbubbles.data.SettingsDataStore
+import com.wearbubbles.data.UpdateChecker
 import com.wearbubbles.db.AppDatabase
 import com.wearbubbles.notifications.NotificationHelper
 import java.util.concurrent.TimeUnit
@@ -45,6 +46,8 @@ class MessageSyncWorker(
 
     override suspend fun doWork(): Result {
         Log.d(TAG, "doWork() started")
+        UpdateChecker.checkAndNotify(applicationContext)
+
         val settingsDataStore = SettingsDataStore(applicationContext)
         if (!settingsDataStore.hasCredentials()) {
             Log.d(TAG, "No credentials, skipping")

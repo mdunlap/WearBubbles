@@ -19,6 +19,8 @@ object NotificationHelper {
 
     private const val CHANNEL_ID = "new_messages"
     const val SERVICE_CHANNEL_ID = "message_listener_service"
+    private const val UPDATE_CHANNEL_ID = "app_updates"
+    private const val UPDATE_NOTIFICATION_ID = 9998
 
     fun createNotificationChannel(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -42,7 +44,39 @@ object NotificationHelper {
                 setShowBadge(false)
             }
             manager.createNotificationChannel(serviceChannel)
+
+            val updateChannel = NotificationChannel(
+                UPDATE_CHANNEL_ID,
+                "App Updates",
+                NotificationManager.IMPORTANCE_DEFAULT
+            ).apply {
+                description = "Notifies when a new WearBubbles version is released"
+                setShowBadge(false)
+            }
+            manager.createNotificationChannel(updateChannel)
         }
+    }
+
+    fun showUpdateNotification(context: Context, version: String, releaseUrl: String) {
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+        val intent = Intent(context, OpenOnPhoneReceiver::class.java).apply {
+            putExtra(OpenOnPhoneReceiver.EXTRA_URL, releaseUrl)
+        }
+        val pendingIntent = PendingIntent.getBroadcast(
+            context, UPDATE_NOTIFICATION_ID, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notification = NotificationCompat.Builder(context, UPDATE_CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.stat_sys_download_done)
+            .setContentTitle("WearBubbles v$version available")
+            .setContentText("Tap to open the release page on your phone")
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+            .build()
+
+        manager.notify(UPDATE_NOTIFICATION_ID, notification)
     }
 
     fun showNewMessageNotification(

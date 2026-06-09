@@ -2,6 +2,19 @@
 
 All notable changes to WearBubbles will be documented in this file.
 
+## [0.5.0] - 2026-06-09
+
+### Watch app
+- Fixed update checker never working (network call ran on the main thread and always failed silently)
+- Update notifications: the background sync worker now checks GitHub releases (at most every 6 hours) and posts a notification once per new version
+- Tapping the update notification, or the version row in Settings, opens the release page on your paired phone
+
+### Phone companion app
+- Update card on the main screen with a Download button when a new release is available
+- Current version shown at the bottom of the screen
+
+---
+
 ## [0.4.2] - 2026-02-27
 
 ### Watch app

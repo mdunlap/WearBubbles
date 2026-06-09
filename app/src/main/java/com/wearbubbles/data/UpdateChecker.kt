@@ -5,6 +5,9 @@ import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
 import com.wearbubbles.BuildConfig
+import com.wearbubbles.notifications.NotificationHelper
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 
@@ -23,6 +26,7 @@ object UpdateChecker {
     private val client = OkHttpClient()
     private val gson = Gson()
 
+    /** Returns info for a newer release, hitting the network at most every 6 hours. */
     suspend fun check(context: Context): UpdateInfo? {
         val settings = SettingsDataStore(context)
 
@@ -37,20 +41,37 @@ object UpdateChecker {
             return null
         }
 
-        return try {
+        val release = fetchLatestRelease() ?: return null
+        val version = release.tagName.removePrefix("v")
+        settings.saveUpdateCheck(version, release.htmlUrl)
+        return if (isNewer(version)) UpdateInfo(version, release.htmlUrl) else null
+    }
+
+    /** Checks for an update and posts a notification at most once per release version. */
+    suspend fun checkAndNotify(context: Context) {
+        try {
+            val info = check(context) ?: return
+            val settings = SettingsDataStore(context)
+            if (settings.getNotifiedUpdateVersion() == info.version) return
+            NotificationHelper.showUpdateNotification(context, info.version, info.url)
+            settings.setNotifiedUpdateVersion(info.version)
+        } catch (e: Exception) {
+            Log.e(TAG, "checkAndNotify failed", e)
+        }
+    }
+
+    private suspend fun fetchLatestRelease(): GitHubRelease? = withContext(Dispatchers.IO) {
+        try {
             val request = Request.Builder()
                 .url(RELEASES_URL)
                 .header("Accept", "application/vnd.github+json")
                 .build()
 
-            val response = client.newCall(request).execute()
-            val body = response.body?.string() ?: return null
-            val release = gson.fromJson(body, GitHubRelease::class.java)
-
-            val version = release.tagName.removePrefix("v")
-            settings.saveUpdateCheck(version, release.htmlUrl)
-
-            if (isNewer(version)) UpdateInfo(version, release.htmlUrl) else null
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@withContext null
+                val body = response.body?.string() ?: return@withContext null
+                gson.fromJson(body, GitHubRelease::class.java)
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Update check failed", e)
             null
