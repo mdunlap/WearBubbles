@@ -154,6 +154,32 @@ object NotificationHelper {
         manager.cancel(chatGuid.hashCode())
     }
 
+    /** Replaces the conversation notification (clearing the reply spinner) with a failure alert. */
+    fun showReplyFailedNotification(context: Context, chatGuid: String) {
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+        val tapIntent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            putExtra("chatGuid", chatGuid)
+        }
+        val tapPendingIntent = PendingIntent.getActivity(
+            context, chatGuid.hashCode(), tapIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.stat_notify_error)
+            .setContentTitle("Reply not sent")
+            .setContentText("Tap to open the conversation and retry")
+            .setCategory(NotificationCompat.CATEGORY_ERROR)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setContentIntent(tapPendingIntent)
+            .setAutoCancel(true)
+            .build()
+
+        manager.notify(chatGuid.hashCode(), notification)
+    }
+
     suspend fun vibrateIfEnabled(context: Context) {
         val settings = SettingsDataStore(context)
         if (!settings.getHapticEnabled()) return

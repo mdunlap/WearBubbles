@@ -73,12 +73,14 @@ class MessageRepository(
 
     suspend fun loadMoreMessages(chatGuid: String) {
         try {
-            val currentCount = messageDao.getMessageCount(chatGuid)
+            // Paginate by date, not offset — the local row count drifts from the server's
+            // ordering (socket inserts, reaction rows, pruning), skipping or repeating pages
+            val oldest = messageDao.getOldestMessageDate(chatGuid) ?: return
             val response = api.getMessages(
                 password = password,
                 body = MessageQueryRequest(
                     limit = 15,
-                    offset = currentCount,
+                    before = oldest,
                     where = listOf(chatWhereClause(chatGuid))
                 )
             )
@@ -127,7 +129,7 @@ class MessageRepository(
         messageDao.upsertMessage(tempMessage)
 
         return try {
-            Log.d(TAG, "Sending message to chatGuid=$chatGuid text=$text")
+            Log.d(TAG, "Sending message to chatGuid=$chatGuid")
             val response = api.sendMessage(
                 password = password,
                 body = SendMessageRequest(
@@ -137,11 +139,16 @@ class MessageRepository(
                 )
             )
             Log.d(TAG, "Send response: status=${response.status} message=${response.message}")
-            if (response.data != null) {
+            val sent = response.status == 200
+            if (sent) {
+                // Always drop the temp on success — if data is null the real message
+                // arrives via socket/refresh, and a lingering temp shows as a duplicate
                 messageDao.deleteMessage(tempGuid)
-                messageDao.upsertMessage(response.data.toEntity(chatGuid))
+                response.data?.let { messageDao.upsertMessage(it.toEntity(chatGuid)) }
+            } else {
+                messageDao.upsertMessage(tempMessage.copy(sendFailed = true))
             }
-            response.status == 200
+            sent
         } catch (e: Exception) {
             Log.e(TAG, "Failed to send message", e)
             messageDao.upsertMessage(tempMessage.copy(sendFailed = true))
@@ -161,11 +168,14 @@ class MessageRepository(
                     tempGuid = message.guid
                 )
             )
-            if (response.data != null) {
+            val sent = response.status == 200
+            if (sent) {
                 messageDao.deleteMessage(message.guid)
-                messageDao.upsertMessage(response.data.toEntity(message.chatGuid))
+                response.data?.let { messageDao.upsertMessage(it.toEntity(message.chatGuid)) }
+            } else {
+                messageDao.upsertMessage(message.copy(sendFailed = true))
             }
-            response.status == 200
+            sent
         } catch (e: Exception) {
             Log.e(TAG, "Retry failed", e)
             messageDao.upsertMessage(message.copy(sendFailed = true))

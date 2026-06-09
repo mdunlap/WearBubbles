@@ -33,7 +33,8 @@ class MainActivity : ComponentActivity() {
         // Start foreground service to keep socket alive for notifications
         MessageListenerService.start(this)
 
-        val openChatGuid = intent?.getStringExtra("chatGuid")
+        // Real chat guids look like "iMessage;-;+1555..." — ignore sentinels like "worker_sync"
+        val openChatGuid = intent?.getStringExtra("chatGuid")?.takeIf { it.contains(";") }
 
         setContent {
             val settingsDataStore = remember { SettingsDataStore(this@MainActivity) }

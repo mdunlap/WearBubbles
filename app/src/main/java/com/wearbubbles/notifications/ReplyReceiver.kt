@@ -4,7 +4,7 @@ import android.app.RemoteInput
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import com.wearbubbles.WearBubblesApp
+import android.util.Log
 import com.wearbubbles.api.ApiClient
 import com.wearbubbles.api.dto.SendMessageRequest
 import com.wearbubbles.data.SettingsDataStore
@@ -20,14 +20,17 @@ class ReplyReceiver : BroadcastReceiver() {
         val reply = results.getCharSequence("reply")?.toString() ?: return
         val chatGuid = intent.getStringExtra("chatGuid") ?: return
 
+        // Keep the process alive until the network call finishes
+        val pendingResult = goAsync()
+
         CoroutineScope(Dispatchers.IO).launch {
-            try {
+            val sent = try {
                 val settings = SettingsDataStore(context)
                 val serverUrl = settings.getServerUrl()
                 val password = settings.getPassword()
                 val api = ApiClient.getInstance(serverUrl)
 
-                api.sendMessage(
+                val response = api.sendMessage(
                     password = password,
                     body = SendMessageRequest(
                         chatGuid = chatGuid,
@@ -35,10 +38,18 @@ class ReplyReceiver : BroadcastReceiver() {
                         tempGuid = "temp_${UUID.randomUUID()}"
                     )
                 )
-            } catch (_: Exception) {}
+                response.status == 200
+            } catch (e: Exception) {
+                Log.e("ReplyReceiver", "Failed to send reply", e)
+                false
+            }
 
-            // Update notification to show the reply was sent
-            NotificationHelper.updateNotificationAfterReply(context, chatGuid)
+            if (sent) {
+                NotificationHelper.updateNotificationAfterReply(context, chatGuid)
+            } else {
+                NotificationHelper.showReplyFailedNotification(context, chatGuid)
+            }
+            pendingResult.finish()
         }
     }
 }

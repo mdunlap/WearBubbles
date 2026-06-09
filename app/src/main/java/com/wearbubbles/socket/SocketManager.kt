@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import okhttp3.OkHttpClient
 import org.json.JSONArray
+import java.net.URLEncoder
 
 sealed class SocketEvent {
     data class NewMessage(val message: MessageDto) : SocketEvent()
@@ -45,7 +46,7 @@ class SocketManager {
                 reconnectionAttempts = Int.MAX_VALUE
                 reconnectionDelay = 2000
                 reconnectionDelayMax = 30000
-                query = "password=$password"
+                query = "password=${URLEncoder.encode(password, "UTF-8")}"
                 transports = arrayOf("websocket")
                 if (okHttpClient != null) {
                     callFactory = okHttpClient

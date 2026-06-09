@@ -42,6 +42,7 @@ data class MessageQueryRequest(
     val limit: Int = 15,
     val offset: Int = 0,
     val sort: String = "DESC",
+    val before: Long? = null,
     val with: List<String> = listOf("attachment", "chat", "handle"),
     val where: List<WhereClause>
 )

@@ -59,15 +59,11 @@ class MessageListenerService : Service() {
                 val serverUrl = settings.getServerUrl()
                 val password = settings.getPassword()
 
-                // Keep socket alive — notifications are handled by ChatRepository
+                // Connect the shared socket — notifications are handled by ChatRepository.
+                // The foreground service itself keeps the process alive; no loop needed.
                 val socketManager = (application as WearBubblesApp).socketManager
                 if (!socketManager.isConnected) {
                     socketManager.connect(serverUrl, password, ApiClient.getHttpClient())
-                }
-
-                // Stay alive while socket is connected
-                while (true) {
-                    delay(60_000)
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error in message listener", e)

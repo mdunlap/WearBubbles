@@ -8,10 +8,19 @@ All notable changes to WearBubbles will be documented in this file.
 - Fixed update checker never working (network call ran on the main thread and always failed silently)
 - Update notifications: the background sync worker now checks GitHub releases (at most every 6 hours) and posts a notification once per new version
 - Tapping the update notification, or the version row in Settings, opens the release page on your paired phone
+- Fixed inline replies being silently lost: failures now show a "Reply not sent" notification instead of dismissing, and the send survives the app being backgrounded
+- Fixed tapping the periodic sync notification opening a broken "worker_sync" conversation
+- Fixed "Load earlier" skipping or repeating messages in long conversations (paginate by date instead of offset)
+- Fixed sent messages occasionally showing twice (stale optimistic message not cleaned up)
+- Server passwords with special characters (&, =, +, spaces) now work over the socket connection
+- Allow plain http:// server URLs (cleartext was blocked by Android, failing with a vague connection error)
+- Fixed companion status panel never receiving status requests (missing manifest entry)
+- Stopped logging message contents
 
 ### Phone companion app
 - Update card on the main screen with a Download button when a new release is available
 - Current version shown at the bottom of the screen
+- Watch status card now actually populates (see manifest fix above)
 
 ---
 

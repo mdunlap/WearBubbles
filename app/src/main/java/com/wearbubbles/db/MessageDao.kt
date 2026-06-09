@@ -34,6 +34,9 @@ interface MessageDao {
     @Query("SELECT COUNT(*) FROM messages WHERE chatGuid = :chatGuid")
     suspend fun getMessageCount(chatGuid: String): Int
 
+    @Query("SELECT MIN(dateCreated) FROM messages WHERE chatGuid = :chatGuid AND isTemporary = 0")
+    suspend fun getOldestMessageDate(chatGuid: String): Long?
+
     @Query("SELECT guid, attachmentGuid, attachmentMimeType FROM messages WHERE chatGuid = :chatGuid AND attachmentGuid IS NOT NULL")
     suspend fun getAttachmentInfo(chatGuid: String): List<AttachmentInfo>
 
