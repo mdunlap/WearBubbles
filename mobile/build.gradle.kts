@@ -19,16 +19,28 @@ android {
         archivesName = "WearBubbles-phone-0.5.0"
     }
 
+    // Release keystore configured via ~/.gradle/gradle.properties (never committed);
+    // falls back to debug signing on machines without the key
+    val keystorePath = providers.gradleProperty("WEARBUBBLES_KEYSTORE").orNull
+
     signingConfigs {
         getByName("debug") {
             // Uses default debug keystore
+        }
+        if (keystorePath != null) {
+            create("release") {
+                storeFile = file(keystorePath)
+                storePassword = providers.gradleProperty("WEARBUBBLES_STORE_PASSWORD").get()
+                keyAlias = providers.gradleProperty("WEARBUBBLES_KEY_ALIAS").get()
+                keyPassword = providers.gradleProperty("WEARBUBBLES_KEY_PASSWORD").get()
+            }
         }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = true
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName(if (keystorePath != null) "release" else "debug")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
