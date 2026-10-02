@@ -5,19 +5,17 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.wearbubbles.WearBubblesApp
 import com.wearbubbles.BuildConfig
-import com.wearbubbles.data.SettingsDataStore
 import com.wearbubbles.data.UpdateChecker
 import com.wearbubbles.data.UpdateInfo
 import com.wearbubbles.notifications.RemoteLauncher
-import com.wearbubbles.db.AppDatabase
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val settingsDataStore = SettingsDataStore(application)
-    private val db = AppDatabase.getInstance(application)
-    private val socketManager = (application as WearBubblesApp).socketManager
+    private val app = application as WearBubblesApp
+    private val settingsDataStore = app.settings
+    private val socketManager = app.socketManager
 
     val hapticEnabled: StateFlow<Boolean> = settingsDataStore.hapticEnabled
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
@@ -52,9 +50,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     fun resetWatch(onComplete: () -> Unit) {
         viewModelScope.launch {
-            settingsDataStore.clear()
-            db.clearAllTables()
-            socketManager.disconnect()
+            // Stops the listener, disconnects, and clears data off the main thread
+            app.sessionManager.signOut()
             onComplete()
         }
     }

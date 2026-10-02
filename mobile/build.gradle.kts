@@ -3,6 +3,9 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
+val appVersionCode = providers.gradleProperty("wearbubbles.versionCode").get().toInt()
+val appVersionName = providers.gradleProperty("wearbubbles.versionName").get()
+
 android {
     namespace = "com.wearbubbles.companion"
     compileSdk = 34
@@ -11,12 +14,12 @@ android {
         applicationId = "com.wearbubbles"
         minSdk = 28
         targetSdk = 34
-        versionCode = 7
-        versionName = "0.5.0"
+        versionCode = appVersionCode
+        versionName = appVersionName
     }
 
     base {
-        archivesName = "WearBubbles-phone-0.5.0"
+        archivesName = "WearBubbles-phone-$appVersionName"
     }
 
     // Release keystore configured via ~/.gradle/gradle.properties (never committed);

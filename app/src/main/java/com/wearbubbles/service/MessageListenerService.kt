@@ -10,8 +10,6 @@ import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.wearbubbles.WearBubblesApp
-import com.wearbubbles.api.ApiClient
-import com.wearbubbles.data.SettingsDataStore
 import com.wearbubbles.notifications.NotificationHelper
 import kotlinx.coroutines.*
 
@@ -22,8 +20,17 @@ class MessageListenerService : Service() {
         private const val SERVICE_NOTIFICATION_ID = 9999
 
         fun start(context: Context) {
-            val intent = Intent(context, MessageListenerService::class.java)
-            context.startForegroundService(intent)
+            try {
+                context.startForegroundService(Intent(context, MessageListenerService::class.java))
+            } catch (e: Exception) {
+                // Android 12+ refuses foreground-service starts from the background;
+                // the service starts the next time the app is opened
+                Log.w(TAG, "Could not start service", e)
+            }
+        }
+
+        fun stop(context: Context) {
+            context.stopService(Intent(context, MessageListenerService::class.java))
         }
     }
 
@@ -39,36 +46,24 @@ class MessageListenerService : Service() {
             buildServiceNotification(),
             ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
         )
-        connectSocket()
     }
 
+    // Runs on every start (not just onCreate) so new credentials reach an already-running service
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        return START_STICKY
-    }
-
-    private fun connectSocket() {
         scope.launch {
             try {
-                val settings = SettingsDataStore(this@MessageListenerService)
-                if (!settings.hasCredentials()) {
-                    Log.d(TAG, "No credentials, stopping")
-                    stopSelf()
-                    return@launch
-                }
-
-                val serverUrl = settings.getServerUrl()
-                val password = settings.getPassword()
-
-                // Connect the shared socket — notifications are handled by ChatRepository.
+                // Connect the shared socket — IncomingMessageHandler posts the notifications.
                 // The foreground service itself keeps the process alive; no loop needed.
-                val socketManager = (application as WearBubblesApp).socketManager
-                if (!socketManager.isConnected) {
-                    socketManager.connect(serverUrl, password, ApiClient.getHttpClient())
+                if (!(application as WearBubblesApp).sessionManager.connectSocket()) {
+                    Log.d(TAG, "No credentials, stopping")
+                    // startId-scoped: a sign-in that started us again meanwhile wins
+                    stopSelf(startId)
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error in message listener", e)
             }
         }
+        return START_STICKY
     }
 
     private fun buildServiceNotification(): Notification {

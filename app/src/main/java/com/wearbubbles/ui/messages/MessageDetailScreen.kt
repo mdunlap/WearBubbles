@@ -43,6 +43,7 @@ import com.google.android.horologist.compose.layout.ScalingLazyColumnDefaults
 import com.google.android.horologist.compose.layout.ScalingLazyColumnDefaults.ItemType
 import com.google.android.horologist.compose.layout.ScreenScaffold
 import com.google.android.horologist.compose.layout.rememberResponsiveColumnState
+import com.wearbubbles.data.attachmentUrl
 import com.wearbubbles.ui.theme.BlueBubble
 import com.wearbubbles.ui.theme.GrayBubble
 import java.time.Instant
@@ -66,7 +67,6 @@ private val localZone = ZoneId.systemDefault()
 fun MessageDetailScreen(
     chatGuid: String,
     chatName: String,
-    socketManager: com.wearbubbles.socket.SocketManager?,
     viewModel: MessageDetailViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -76,7 +76,7 @@ fun MessageDetailScreen(
     var fullscreenMimeType by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(chatGuid) {
-        viewModel.initialize(chatGuid, socketManager)
+        viewModel.initialize(chatGuid)
     }
 
     val replyLauncher = rememberLauncherForActivityResult(
@@ -283,11 +283,9 @@ private fun MessageBubble(
                     )
             ) {
                 if (hasAttachment) {
-                    val imageUrl = "${serverUrl.trimEnd('/')}/api/v1/attachment/${message.attachmentGuid!!}/download?password=$password"
+                    val imageUrl = attachmentUrl(serverUrl, message.attachmentGuid!!, password)
                     AttachmentImage(
-                        serverUrl = serverUrl,
-                        password = password,
-                        attachmentGuid = message.attachmentGuid,
+                        imageUrl = imageUrl,
                         mimeType = message.attachmentMimeType,
                         onClick = { onImageTap(imageUrl, message.attachmentMimeType) }
                     )
@@ -341,19 +339,16 @@ private fun MessageBubble(
 
 @Composable
 private fun AttachmentImage(
-    serverUrl: String,
-    password: String,
-    attachmentGuid: String,
+    imageUrl: String,
     mimeType: String?,
     onClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val isGif = mimeType == "image/gif"
 
-    val imageRequest = remember(attachmentGuid) {
-        val url = "${serverUrl.trimEnd('/')}/api/v1/attachment/$attachmentGuid/download?password=$password"
+    val imageRequest = remember(imageUrl) {
         ImageRequest.Builder(context)
-            .data(url)
+            .data(imageUrl)
             .crossfade(false)
             .memoryCachePolicy(CachePolicy.ENABLED)
             .diskCachePolicy(CachePolicy.ENABLED)

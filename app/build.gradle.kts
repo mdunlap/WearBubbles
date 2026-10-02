@@ -4,6 +4,9 @@ plugins {
     id("com.google.devtools.ksp")
 }
 
+val appVersionCode = providers.gradleProperty("wearbubbles.versionCode").get().toInt()
+val appVersionName = providers.gradleProperty("wearbubbles.versionName").get()
+
 android {
     namespace = "com.wearbubbles"
     compileSdk = 34
@@ -12,12 +15,12 @@ android {
         applicationId = "com.wearbubbles"
         minSdk = 30
         targetSdk = 34
-        versionCode = 7
-        versionName = "0.5.0"
+        versionCode = appVersionCode
+        versionName = appVersionName
     }
 
     base {
-        archivesName = "WearBubbles-watch-0.5.0"
+        archivesName = "WearBubbles-watch-$appVersionName"
     }
 
     // Release keystore configured via ~/.gradle/gradle.properties (never committed);
@@ -98,6 +101,8 @@ dependencies {
 
     // Activity Compose
     implementation("androidx.activity:activity-compose:1.8.2")
+    // Not used directly: overrides an older transitive Fragment that breaks the
+    // ActivityResult APIs (lint InvalidFragmentVersionForActivityResult)
     implementation("androidx.fragment:fragment-ktx:1.6.2")
 
     // Lifecycle
@@ -114,7 +119,6 @@ dependencies {
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
 
     // Socket.IO
     implementation("io.socket:socket.io-client:2.1.0")
@@ -147,4 +151,6 @@ dependencies {
 
     // Horologist (Google's Wear OS companion library — same as Google Messages)
     implementation("com.google.android.horologist:horologist-compose-layout:0.5.28")
+
+    testImplementation("junit:junit:4.13.2")
 }

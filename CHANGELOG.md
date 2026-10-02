@@ -2,6 +2,30 @@
 
 All notable changes to WearBubbles will be documented in this file.
 
+## [Unreleased]
+
+### Watch app
+- Notifications now keep working after the app is closed, after the background service restarts, and after a reboot or app update (previously they only arrived while the conversation list was open, apart from the 15-minute sync)
+- Fixed Settings → "Reset watch" crashing (and leaving old messages behind)
+- The 15-minute background sync no longer re-buzzes for the same unread chats; it posts one notification per chat with a working Reply action, and only for messages the watch hasn't already shown
+- Fixed images not loading when the server password contains characters like &, +, # or spaces
+- Fixed the update checker always reporting "Up to date" in release builds
+- Changing or resetting credentials (on the watch or from the phone) now reconnects or stops the live connection immediately, and switching servers clears the old server's chats
+- Removed conversations stay removed until a new message arrives in them
+- New Message accepts formatted phone numbers like "(555) 123-4567"
+- Video, audio and other non-photo attachments show a label instead of being hidden
+- Removing a heart reaction now clears it
+- Server URLs with a path prefix (e.g. behind a reverse proxy) now work
+- Warns when the server URL uses unencrypted http://
+- App data is no longer included in device backups (it contains the server password)
+
+### Phone companion app
+- Fixed the update card never appearing in release builds
+- Warns when the server URL uses unencrypted http://
+- App data is no longer included in device backups
+
+---
+
 ## [0.5.0] - 2026-06-09
 
 ### Watch app

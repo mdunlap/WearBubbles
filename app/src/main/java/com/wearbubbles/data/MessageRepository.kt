@@ -2,27 +2,19 @@ package com.wearbubbles.data
 
 import android.util.Log
 import com.wearbubbles.api.BlueBubblesApi
-import com.wearbubbles.api.dto.MessageDto
 import com.wearbubbles.api.dto.MessageQueryRequest
 import com.wearbubbles.api.dto.ReactRequest
 import com.wearbubbles.api.dto.SendMessageRequest
 import com.wearbubbles.api.dto.WhereClause
 import com.wearbubbles.db.MessageDao
 import com.wearbubbles.db.entities.MessageEntity
-import com.wearbubbles.socket.SocketEvent
-import com.wearbubbles.socket.SocketManager
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.launch
 import java.util.UUID
 
 class MessageRepository(
     private val api: BlueBubblesApi,
     private val password: String,
-    private val messageDao: MessageDao,
-    private val socketManager: SocketManager,
-    private val scope: CoroutineScope
+    private val messageDao: MessageDao
 ) {
     companion object {
         private const val TAG = "MessageRepository"
@@ -31,23 +23,7 @@ class MessageRepository(
     private var hasMore = true
     fun hasMoreMessages() = hasMore
 
-    init {
-        scope.launch(Dispatchers.IO) {
-            socketManager.events.collect { event ->
-                when (event) {
-                    is SocketEvent.NewMessage -> {
-                        val chatGuid = event.message.chats?.firstOrNull()?.guid ?: return@collect
-                        messageDao.upsertMessage(event.message.toEntity(chatGuid))
-                    }
-                    is SocketEvent.UpdatedMessage -> {
-                        val chatGuid = event.message.chats?.firstOrNull()?.guid ?: return@collect
-                        messageDao.upsertMessage(event.message.toEntity(chatGuid))
-                    }
-                    else -> {}
-                }
-            }
-        }
-    }
+    // Live socket messages are written to Room by IncomingMessageHandler
 
     fun getMessages(chatGuid: String): Flow<List<MessageEntity>> {
         return messageDao.getMessagesForChat(chatGuid)
@@ -194,27 +170,5 @@ class MessageRepository(
             Log.e(TAG, "Failed to react to message", e)
             false
         }
-    }
-
-    private fun MessageDto.toEntity(chatGuid: String): MessageEntity {
-        // Find the first visible image/gif attachment
-        val imageAttachment = attachments?.firstOrNull { att ->
-            att.hideAttachment != true &&
-            att.mimeType != null &&
-            att.guid != null &&
-            att.mimeType.startsWith("image/")
-        }
-        return MessageEntity(
-            guid = guid,
-            chatGuid = chatGuid,
-            text = text,
-            isFromMe = isFromMe,
-            dateCreated = dateCreated ?: System.currentTimeMillis(),
-            handleAddress = handle?.address,
-            attachmentGuid = imageAttachment?.guid,
-            attachmentMimeType = imageAttachment?.mimeType,
-            associatedMessageGuid = associatedMessageGuid,
-            associatedMessageType = associatedMessageType
-        )
     }
 }

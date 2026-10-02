@@ -87,11 +87,7 @@ fun SetupScreen(
         item {
             Chip(
                 onClick = {
-                    val intent = createRemoteInputIntent(
-                        "server_url",
-                        "Server URL",
-                        uiState.serverUrl
-                    )
+                    val intent = createRemoteInputIntent("server_url", "Server URL")
                     urlLauncher.launch(intent)
                 },
                 label = {
@@ -105,16 +101,24 @@ fun SetupScreen(
             )
         }
 
+        if (uiState.serverUrl.trim().startsWith("http://", ignoreCase = true)) {
+            item {
+                Text(
+                    text = "Not encrypted \u2014 your password is sent in plain text",
+                    style = MaterialTheme.typography.caption3,
+                    color = MaterialTheme.colors.error,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                )
+            }
+        }
+
         item { Spacer(modifier = Modifier.height(4.dp)) }
 
         item {
             Chip(
                 onClick = {
-                    val intent = createRemoteInputIntent(
-                        "password",
-                        "Password",
-                        uiState.password
-                    )
+                    val intent = createRemoteInputIntent("password", "Password")
                     passwordLauncher.launch(intent)
                 },
                 label = {
@@ -161,11 +165,7 @@ fun SetupScreen(
     }
 }
 
-private fun createRemoteInputIntent(
-    key: String,
-    label: String,
-    currentValue: String
-): Intent {
+private fun createRemoteInputIntent(key: String, label: String): Intent {
     val remoteInputs = listOf(
         RemoteInput.Builder(key)
             .setLabel(label)

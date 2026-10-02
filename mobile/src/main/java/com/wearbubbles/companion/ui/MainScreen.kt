@@ -30,7 +30,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -167,6 +167,15 @@ fun MainScreen(viewModel: MainViewModel) {
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
             )
 
+            if (state.url.trim().startsWith("http://", ignoreCase = true)) {
+                Text(
+                    text = "This connection isn't encrypted, so your password is sent in plain text. " +
+                        "Use https:// unless the server is only reachable on a private network.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+
             OutlinedTextField(
                 value = state.password,
                 onValueChange = { viewModel.setPassword(it) },
@@ -234,7 +243,7 @@ fun MainScreen(viewModel: MainViewModel) {
 
             // Settings section
             Spacer(Modifier.height(8.dp))
-            Divider(color = MaterialTheme.colorScheme.outlineVariant)
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             Spacer(Modifier.height(8.dp))
 
             Text(
@@ -441,7 +450,7 @@ private fun WatchStatusCard(status: WatchStatus, onRefresh: () -> Unit) {
                 )
             }
 
-            Divider(color = MaterialTheme.colorScheme.outlineVariant)
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
             // Conversations
             Text(

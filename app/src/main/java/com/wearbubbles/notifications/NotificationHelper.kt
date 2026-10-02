@@ -21,6 +21,8 @@ object NotificationHelper {
     const val SERVICE_CHANNEL_ID = "message_listener_service"
     private const val UPDATE_CHANNEL_ID = "app_updates"
     private const val UPDATE_NOTIFICATION_ID = 9998
+    private const val SETUP_CHANNEL_ID = "setup"
+    private const val SETUP_NOTIFICATION_ID = 9997
 
     fun createNotificationChannel(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -54,7 +56,46 @@ object NotificationHelper {
                 setShowBadge(false)
             }
             manager.createNotificationChannel(updateChannel)
+
+            val setupChannel = NotificationChannel(
+                SETUP_CHANNEL_ID,
+                "Setup",
+                NotificationManager.IMPORTANCE_DEFAULT
+            ).apply {
+                description = "Confirms credentials sent from the phone app"
+                setShowBadge(false)
+            }
+            manager.createNotificationChannel(setupChannel)
         }
+    }
+
+    /** Shown when the phone sets up the watch while the app isn't open (it can't launch itself then). */
+    fun showSetupCompleteNotification(context: Context) {
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+        val tapIntent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        }
+        val tapPendingIntent = PendingIntent.getActivity(
+            context, SETUP_NOTIFICATION_ID, tapIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notification = NotificationCompat.Builder(context, SETUP_CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.sym_action_email)
+            .setContentTitle("WearBubbles is set up")
+            .setContentText("Tap to open your conversations")
+            .setContentIntent(tapPendingIntent)
+            .setAutoCancel(true)
+            .build()
+
+        manager.notify(SETUP_NOTIFICATION_ID, notification)
+    }
+
+    /** Clears every notification this app posted (used on sign-out). */
+    fun cancelAll(context: Context) {
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        manager.cancelAll()
     }
 
     fun showUpdateNotification(context: Context, version: String, releaseUrl: String) {
