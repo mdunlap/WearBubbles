@@ -13,6 +13,7 @@ import com.wearbubbles.ui.conversations.ConversationListScreen
 import com.wearbubbles.ui.conversations.ConversationListViewModel
 import com.wearbubbles.ui.messages.MessageDetailScreen
 import com.wearbubbles.ui.messages.NewMessageScreen
+import com.wearbubbles.ui.messages.recipientChatGuid
 import com.wearbubbles.ui.settings.SettingsScreen
 import com.wearbubbles.ui.setup.SetupScreen
 import com.wearbubbles.ui.theme.WearBubblesTheme
@@ -84,7 +85,7 @@ fun WearApp(hasCredentials: Boolean, openChatGuid: String? = null) {
                 composable("new_message") {
                     NewMessageScreen(
                         onRecipientSelected = { address ->
-                            val chatGuid = "iMessage;-;$address"
+                            val chatGuid = recipientChatGuid(address)
                             val encoded = encodeGuid(chatGuid)
                             navController.navigate("messages/$encoded") {
                                 popUpTo("new_message") { inclusive = true }
@@ -102,12 +103,13 @@ fun WearApp(hasCredentials: Boolean, openChatGuid: String? = null) {
                     }
 
                     val chats by conversationListViewModel.uiState.collectAsStateWithLifecycle()
-                    val chatName = chats.chats.find { it.guid == chatGuid }?.displayName ?: chatGuid
+                    // New conversations aren't in the list yet: show the address, not the raw guid
+                    val chatName = chats.chats.find { it.guid == chatGuid }?.displayName
+                        ?: chatGuid.substringAfterLast(';')
 
                     MessageDetailScreen(
                         chatGuid = chatGuid,
-                        chatName = chatName,
-                        socketManager = conversationListViewModel.getSocketManager()
+                        chatName = chatName
                     )
                 }
             }

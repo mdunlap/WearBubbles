@@ -4,19 +4,18 @@ import android.util.Log
 import com.wearbubbles.api.BlueBubblesApi
 import com.wearbubbles.db.ContactDao
 import com.wearbubbles.db.entities.ContactEntity
+import java.util.concurrent.ConcurrentHashMap
 
 class ContactRepository(
-    private val api: BlueBubblesApi,
-    private val password: String,
     private val contactDao: ContactDao
 ) {
     companion object {
         private const val TAG = "ContactRepository"
     }
 
-    // In-memory cache for fast lookups
-    private val contactMap = mutableMapOf<String, String>()
-    private var loaded = false
+    // In-memory cache for fast lookups; shared app-wide, so read from UI and IO threads
+    private val contactMap = ConcurrentHashMap<String, String>()
+    @Volatile private var loaded = false
 
     suspend fun loadFromCache() {
         if (loaded) return
@@ -28,44 +27,43 @@ class ContactRepository(
         Log.d(TAG, "Loaded ${contactMap.size} contacts from Room cache")
     }
 
-    suspend fun loadContacts() {
+    suspend fun loadContacts(api: BlueBubblesApi, password: String) {
         // Load Room cache first for instant lookups
-        if (!loaded) loadFromCache()
+        loadFromCache()
 
         try {
             val response = api.getContacts(password)
             val entities = mutableListOf<ContactEntity>()
-            contactMap.clear()
 
             for (contact in response.data) {
                 val name = contact.displayName
                     ?: listOfNotNull(contact.firstName, contact.lastName).joinToString(" ")
                 if (name.isBlank()) continue
 
-                contact.phoneNumbers?.forEach { phone ->
-                    phone.address?.let { addr ->
-                        val normalized = normalizeAddress(addr)
-                        contactMap[normalized] = name
-                        entities.add(ContactEntity(normalized, name))
-                    }
-                }
-                contact.emails?.forEach { email ->
-                    email.address?.let { addr ->
-                        val normalized = normalizeAddress(addr)
-                        contactMap[normalized] = name
-                        entities.add(ContactEntity(normalized, name))
-                    }
+                val addresses = contact.phoneNumbers.orEmpty().mapNotNull { it.address } +
+                    contact.emails.orEmpty().mapNotNull { it.address }
+                for (addr in addresses) {
+                    entities.add(ContactEntity(normalizeAddress(addr), name))
                 }
             }
+
+            // Merge rather than clear-and-refill so lookups never see an empty map mid-load
+            entities.forEach { contactMap[it.normalizedAddress] = it.displayName }
 
             // Upsert only — no delete-all, preserves data during brief API failures
             if (entities.isNotEmpty()) {
                 contactDao.upsertContacts(entities)
             }
-            Log.d(TAG, "Loaded ${contactMap.size} contact addresses from API")
+            Log.d(TAG, "Loaded ${entities.size} contact addresses from API")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to load contacts from API, using cache", e)
         }
+    }
+
+    /** Drops the in-memory cache (the Room table is cleared separately on sign-out). */
+    fun clear() {
+        contactMap.clear()
+        loaded = false
     }
 
     suspend fun getDisplayName(address: String): String {

@@ -3,15 +3,21 @@ package com.wearbubbles.worker
 import android.content.Context
 import android.util.Log
 import androidx.work.*
-import com.wearbubbles.api.ApiClient
+import com.wearbubbles.WearBubblesApp
 import com.wearbubbles.api.dto.ChatQueryRequest
-import com.wearbubbles.data.ContactRepository
-import com.wearbubbles.data.SettingsDataStore
 import com.wearbubbles.data.UpdateChecker
-import com.wearbubbles.db.AppDatabase
+import com.wearbubbles.data.attachmentLabel
+import com.wearbubbles.data.currentSession
+import com.wearbubbles.data.toEntity
+import com.wearbubbles.data.upsertFromServer
 import com.wearbubbles.notifications.NotificationHelper
 import java.util.concurrent.TimeUnit
 
+/**
+ * Periodic fallback for when the socket isn't delivering (e.g. the process was killed).
+ * Only notifies for messages newer than what Room already has, so a chat that stays
+ * unread doesn't re-alert every run, and anything the socket already showed is skipped.
+ */
 class MessageSyncWorker(
     context: Context,
     params: WorkerParameters
@@ -48,52 +54,48 @@ class MessageSyncWorker(
         Log.d(TAG, "doWork() started")
         UpdateChecker.checkAndNotify(applicationContext)
 
-        val settingsDataStore = SettingsDataStore(applicationContext)
-        if (!settingsDataStore.hasCredentials()) {
+        val app = applicationContext as WearBubblesApp
+        val session = app.settings.currentSession()
+        if (session == null) {
             Log.d(TAG, "No credentials, skipping")
             return Result.success()
         }
 
         return try {
-            val serverUrl = settingsDataStore.getServerUrl()
-            val password = settingsDataStore.getPassword()
-            Log.d(TAG, "Fetching chats from $serverUrl")
-            val api = ApiClient.getInstance(serverUrl)
-            val db = AppDatabase.getInstance(applicationContext)
-
-            // Fetch latest chats
-            val response = api.getChats(
-                password = password,
+            val chatDao = app.database.chatDao()
+            val response = session.api.getChats(
+                password = session.password,
                 body = ChatQueryRequest(limit = 20)
             )
 
-            // Check for new unread messages
-            var newMessageCount = 0
-            var lastSenderName = ""
+            // First sync on an empty cache only seeds Room — don't alert for old unread chats
+            val isFirstSync = chatDao.getChatCount() == 0
 
-            val contactRepo = ContactRepository(api, password, db.contactDao())
-            contactRepo.loadFromCache() // Use cached contacts only — don't fetch all from API
-
-            for (chat in response.data) {
-                if (chat.hasUnreadMessage == true && chat.lastMessage?.isFromMe == false) {
-                    newMessageCount++
-                    val addresses = chat.participants?.map { it.address } ?: emptyList()
-                    lastSenderName = if (addresses.isNotEmpty()) {
-                        contactRepo.getDisplayNameForAddresses(addresses)
-                    } else {
-                        chat.displayName ?: "Unknown"
-                    }
+            val newMessages = response.data.filter { chat ->
+                val last = chat.lastMessage ?: return@filter false
+                if (chat.hasUnreadMessage != true || last.isFromMe || last.associatedMessageType != null) {
+                    return@filter false
                 }
+                val knownDate = chatDao.getChatByGuid(chat.guid)?.lastMessageDate ?: 0L
+                (last.dateCreated ?: 0L) > knownDate
             }
 
-            Log.d(TAG, "Found $newMessageCount unread chats")
-            if (newMessageCount > 0) {
-                val title = if (newMessageCount == 1) "New message from $lastSenderName" else "$newMessageCount new messages"
-                val text = if (newMessageCount == 1) "Tap to view" else "Tap to view conversations"
-                Log.d(TAG, "Posting notification: $title")
-                NotificationHelper.showNewMessageNotification(
-                    applicationContext, title, text, "worker_sync"
-                )
+            chatDao.upsertFromServer(response.data.map { it.toEntity() })
+
+            Log.d(TAG, "Found ${newMessages.size} chats with new messages (first sync: $isFirstSync)")
+            if (!isFirstSync && newMessages.isNotEmpty()) {
+                app.contactRepository.loadFromCache()
+                for (chat in newMessages) {
+                    val last = chat.lastMessage!!
+                    val sender = last.handle?.address
+                        ?.let { app.contactRepository.getDisplayName(it) }
+                        ?: chat.displayName
+                        ?: "Unknown"
+                    val preview = last.text?.ifBlank { null }
+                        ?: attachmentLabel(last.attachments?.firstOrNull { it.hideAttachment != true }?.mimeType)
+                        ?: "New message"
+                    NotificationHelper.showNewMessageNotification(applicationContext, sender, preview, chat.guid)
+                }
                 NotificationHelper.vibrateIfEnabled(applicationContext)
             }
 

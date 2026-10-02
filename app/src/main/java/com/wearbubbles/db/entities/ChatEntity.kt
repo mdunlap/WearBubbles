@@ -19,5 +19,7 @@ data class ChatEntity(
     val lastMessageIsFromMe: Boolean?,
     val hasUnreadMessage: Boolean = false,
     val lastMessageAttachmentGuid: String? = null,
-    val lastMessageAttachmentMimeType: String? = null
+    val lastMessageAttachmentMimeType: String? = null,
+    // Removed by the user: hidden until a message newer than this date arrives
+    val hiddenBefore: Long? = null
 )

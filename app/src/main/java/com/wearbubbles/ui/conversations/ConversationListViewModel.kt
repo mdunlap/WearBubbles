@@ -8,13 +8,12 @@ import coil.Coil
 import coil.request.CachePolicy
 import coil.request.ImageRequest
 import com.wearbubbles.WearBubblesApp
-import com.wearbubbles.api.ApiClient
-import com.wearbubbles.data.ChatRepository
-import com.wearbubbles.data.ContactRepository
-import com.wearbubbles.data.SettingsDataStore
-import com.wearbubbles.db.AppDatabase
+import com.wearbubbles.data.attachmentLabel
+import com.wearbubbles.data.attachmentUrl
+import com.wearbubbles.data.currentSession
 import com.wearbubbles.db.entities.ChatEntity
-import com.wearbubbles.socket.SocketManager
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
@@ -37,69 +36,53 @@ data class ConversationListUiState(
 
 class ConversationListViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val settingsDataStore = SettingsDataStore(application)
-    private val db = AppDatabase.getInstance(application)
-    private val socketManager = (application as WearBubblesApp).socketManager
-
-    private lateinit var chatRepository: ChatRepository
-    private lateinit var contactRepository: ContactRepository
-
-    // Cached credentials for sync access
-    private var cachedPassword: String? = null
+    private val app = application as WearBubblesApp
+    private val chatRepository = app.chatRepository
+    private val contactRepository = app.contactRepository
 
     private val _uiState = MutableStateFlow(ConversationListUiState())
     val uiState: StateFlow<ConversationListUiState> = _uiState.asStateFlow()
 
-    private var initialized = false
+    // Session the screen was loaded for; a sign-out/sign-in since (even with the same
+    // credentials) reloads contacts and chats instead of reusing the old server and password
+    private var sessionKey: String? = null
+    private var sessionJob: Job? = null
 
     fun initialize() {
-        if (initialized) return
-        initialized = true
-
         viewModelScope.launch {
-            try {
-                val serverUrl = settingsDataStore.getServerUrl()
-                val password = settingsDataStore.getPassword()
-                cachedPassword = password
-                val api = ApiClient.getInstance(serverUrl)
+            val session = app.settings.currentSession() ?: return@launch
+            val key = "${app.sessionManager.generation}\n${session.serverUrl}\n${session.password}"
+            if (key == sessionKey) return@launch
+            sessionKey = key
 
-                contactRepository = ContactRepository(api, password, db.contactDao())
-                chatRepository = ChatRepository(
-                    context = getApplication(),
-                    api = api,
-                    password = password,
-                    chatDao = db.chatDao(),
-                    socketManager = socketManager,
-                    contactRepository = contactRepository,
-                    scope = viewModelScope
-                )
+            sessionJob?.cancel()
+            sessionJob = launch {
+                try {
+                    // 1. Load contacts from Room cache (instant — covers repeat launches)
+                    contactRepository.loadFromCache()
 
-                // 1. Load contacts from Room cache (instant — covers repeat launches)
-                contactRepository.loadFromCache()
+                    // 2. Load contacts from API (awaited — ensures names are ready before showing chats)
+                    contactRepository.loadContacts(session.api, session.password)
 
-                // 2. Load contacts from API (awaited — ensures names are ready before showing chats)
-                contactRepository.loadContacts()
+                    // 3. Ensure socket is connected and kept alive (no-op if the service already did)
+                    app.sessionManager.start()
 
-                // 3. Ensure socket is connected (service may have already connected it)
-                if (!socketManager.isConnected) {
-                    socketManager.connect(serverUrl, password, ApiClient.getHttpClient())
-                }
-
-                // 4. NOW observe chats — contacts are fully loaded, names will resolve correctly
-                launch {
+                    // 4. NOW observe chats — contacts are fully loaded, names will resolve correctly
                     chatRepository.chats.collect { entities ->
                         _uiState.value = _uiState.value.copy(
                             chats = entities.map { it.toUiItem() },
-                            isLoading = false
+                            isLoading = false,
+                            error = null
                         )
-                        prefetchAttachmentImages(entities, serverUrl, password)
+                        prefetchAttachmentImages(entities, session.serverUrl, session.password)
                     }
+                } catch (e: Exception) {
+                    if (e is CancellationException) throw e
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        error = e.message
+                    )
                 }
-            } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    error = e.message
-                )
             }
         }
     }
@@ -107,32 +90,26 @@ class ConversationListViewModel(application: Application) : AndroidViewModel(app
     fun refresh() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
-            if (::chatRepository.isInitialized) {
-                chatRepository.refreshChats()
-            }
+            chatRepository.refreshChats()
             _uiState.value = _uiState.value.copy(isLoading = false)
         }
     }
 
+    /** Hides the chat until a new message arrives in it (deleting would just re-sync it). */
     fun deleteChat(guid: String) {
         viewModelScope.launch {
-            db.chatDao().deleteChat(guid)
+            chatRepository.hideChat(guid)
         }
     }
-
-    fun getSocketManager(): SocketManager = socketManager
-
-    fun getPassword(): String? = cachedPassword
 
     private fun prefetchAttachmentImages(chats: List<ChatEntity>, serverUrl: String, password: String) {
         val context = getApplication<Application>()
         val imageLoader = Coil.imageLoader(context)
         chats.take(10)
-            .filter { it.lastMessageAttachmentGuid != null }
             .forEach { chat ->
-                val url = "${serverUrl.trimEnd('/')}/api/v1/attachment/${chat.lastMessageAttachmentGuid}/download?password=$password"
+                val attachmentGuid = chat.lastMessageAttachmentGuid ?: return@forEach
                 val request = ImageRequest.Builder(context)
-                    .data(url)
+                    .data(attachmentUrl(serverUrl, attachmentGuid, password))
                     .size(250, 250)
                     .memoryCachePolicy(CachePolicy.ENABLED)
                     .diskCachePolicy(CachePolicy.ENABLED)
@@ -145,23 +122,15 @@ class ConversationListViewModel(application: Application) : AndroidViewModel(app
     private fun ChatEntity.toUiItem(): ChatUiItem {
         return ChatUiItem(
             guid = guid,
-            displayName = if (::chatRepository.isInitialized) {
-                chatRepository.getDisplayNameSync(this)
-            } else {
-                displayName ?: chatIdentifier ?: guid
-            },
+            displayName = chatRepository.getDisplayNameSync(this),
             lastMessage = lastMessageText?.ifBlank { null }
-                ?: when {
-                    lastMessageAttachmentMimeType?.startsWith("image/") == true -> "Photo"
-                    lastMessageAttachmentMimeType?.startsWith("video/") == true -> "Video"
-                    lastMessageAttachmentMimeType != null -> "Attachment"
-                    else -> ""
-                },
+                ?: attachmentLabel(lastMessageAttachmentMimeType)
+                ?: "",
             timestamp = lastMessageDate,
             isFromMe = lastMessageIsFromMe ?: false,
             hasUnread = hasUnreadMessage
         )
     }
 
-    // Socket lifecycle is managed by MessageListenerService — don't disconnect here
+    // Socket lifecycle is managed by SessionManager / MessageListenerService — don't disconnect here
 }

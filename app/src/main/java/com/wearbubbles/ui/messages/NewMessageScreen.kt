@@ -29,14 +29,6 @@ fun NewMessageScreen(
         if (addr.isNotBlank()) onRecipientSelected(addr)
     }
 
-    // Automatically launch the input on first composition
-    var launched by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
-        if (!launched) {
-            launched = true
-        }
-    }
-
     val columnState = rememberResponsiveColumnState(
         contentPadding = ScalingLazyColumnDefaults.padding(
             first = ItemType.Text,

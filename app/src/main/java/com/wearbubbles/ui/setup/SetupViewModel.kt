@@ -3,8 +3,8 @@ package com.wearbubbles.ui.setup
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.wearbubbles.WearBubblesApp
 import com.wearbubbles.api.ApiClient
-import com.wearbubbles.data.SettingsDataStore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,7 +20,8 @@ data class SetupUiState(
 
 class SetupViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val settingsDataStore = SettingsDataStore(application)
+    private val app = application as WearBubblesApp
+    private val settingsDataStore = app.settings
 
     private val _uiState = MutableStateFlow(SetupUiState())
     val uiState: StateFlow<SetupUiState> = _uiState.asStateFlow()
@@ -45,7 +46,7 @@ class SetupViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun connect() {
-        val state = _uiState.value
+        val state = _uiState.value.let { it.copy(serverUrl = it.serverUrl.trim()) }
         if (state.serverUrl.isBlank()) {
             _uiState.value = state.copy(error = "Enter server URL")
             return
@@ -62,7 +63,8 @@ class SetupViewModel(application: Application) : AndroidViewModel(application) {
                 val api = ApiClient.getInstance(state.serverUrl)
                 val response = api.ping(state.password)
                 if (response.status == 200) {
-                    settingsDataStore.saveCredentials(state.serverUrl, state.password)
+                    // Saves, connects the socket and starts the background listener
+                    app.sessionManager.signIn(state.serverUrl, state.password)
                     _uiState.value = _uiState.value.copy(isLoading = false, isConnected = true)
                 } else {
                     _uiState.value = _uiState.value.copy(

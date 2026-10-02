@@ -13,6 +13,8 @@ class OpenOnPhoneReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         val url = intent.getStringExtra(EXTRA_URL) ?: return
-        RemoteLauncher.openUrlOnPhone(context, url)
+        // Keep the receiver alive until the phone answers so the result toast still shows
+        val pendingResult = goAsync()
+        RemoteLauncher.openUrlOnPhone(context, url) { pendingResult.finish() }
     }
 }

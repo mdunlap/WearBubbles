@@ -5,13 +5,12 @@ import android.util.Log
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.wearbubbles.WearBubblesApp
 import com.wearbubbles.api.ApiClient
 import com.wearbubbles.data.MessageRepository
 import com.wearbubbles.data.SettingsDataStore
+import com.wearbubbles.data.attachmentLabel
 import com.wearbubbles.db.AppDatabase
 import com.wearbubbles.db.entities.MessageEntity
-import com.wearbubbles.socket.SocketManager
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
@@ -53,7 +52,7 @@ class MessageDetailViewModel(application: Application) : AndroidViewModel(applic
     private var chatGuid: String = ""
     private var initialized = false
 
-    fun initialize(chatGuid: String, socketManager: SocketManager?) {
+    fun initialize(chatGuid: String) {
         if (initialized && this.chatGuid == chatGuid) return
         this.chatGuid = chatGuid
         initialized = true
@@ -69,27 +68,17 @@ class MessageDetailViewModel(application: Application) : AndroidViewModel(applic
                     password = password
                 )
 
-                // Use shared socket from Application — never create a new one
-                val effectiveSocketManager = socketManager
-                    ?: (getApplication<Application>() as WearBubblesApp).socketManager
-
+                // Live socket messages reach Room via the app-wide IncomingMessageHandler
                 messageRepository = MessageRepository(
                     api = api,
                     password = password,
-                    messageDao = db.messageDao(),
-                    socketManager = effectiveSocketManager,
-                    scope = viewModelScope
+                    messageDao = db.messageDao()
                 )
 
                 // Start observing Room IMMEDIATELY — shows cached messages instantly
                 launch {
                     messageRepository.getMessages(chatGuid).collect { entities ->
-                        // Build set of message GUIDs that have love reactions
-                        // associatedMessageGuid format: "p:0/ORIGINAL_GUID"
-                        val lovedGuids = entities
-                            .filter { it.associatedMessageType == "2000" }
-                            .mapNotNull { it.associatedMessageGuid?.substringAfterLast("/") }
-                            .toSet()
+                        val lovedGuids = lovedMessageGuids(entities)
 
                         // Filter out reaction messages, map to UI items with love info
                         val messages = entities
@@ -181,7 +170,10 @@ class MessageDetailViewModel(application: Application) : AndroidViewModel(applic
     private fun MessageEntity.toUiItem(hasLoveReaction: Boolean = false): MessageUiItem {
         return MessageUiItem(
             guid = guid,
-            text = text ?: "",
+            // Non-image attachments have no inline preview, so label them instead of hiding the bubble
+            text = text?.ifBlank { null }
+                ?: attachmentLabel(attachmentMimeType)?.takeIf { attachmentGuid == null }?.let { "📎 $it" }
+                ?: "",
             isFromMe = isFromMe,
             dateCreated = dateCreated,
             isTemporary = isTemporary,

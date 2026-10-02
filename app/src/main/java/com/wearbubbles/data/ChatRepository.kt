@@ -1,158 +1,54 @@
 package com.wearbubbles.data
 
-import android.content.Context
 import android.util.Log
-import com.wearbubbles.api.BlueBubblesApi
-import com.wearbubbles.api.dto.ChatDto
 import com.wearbubbles.api.dto.ChatQueryRequest
 import com.wearbubbles.db.ChatDao
 import com.wearbubbles.db.entities.ChatEntity
-import com.wearbubbles.notifications.NotificationHelper
-import com.wearbubbles.socket.SocketEvent
-import com.wearbubbles.socket.SocketManager
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.launch
 
+/**
+ * App-wide chat list. Credentials are read per call (see [currentSession]) so a
+ * sign-out or server change never leaves this talking to the old server.
+ * Live socket updates are applied by [IncomingMessageHandler].
+ */
 class ChatRepository(
-    private val context: Context,
-    private val api: BlueBubblesApi,
-    private val password: String,
     private val chatDao: ChatDao,
-    private val socketManager: SocketManager,
-    private val contactRepository: ContactRepository,
-    private val scope: CoroutineScope
+    private val settings: SettingsDataStore,
+    private val contactRepository: ContactRepository
 ) {
     companion object {
         private const val TAG = "ChatRepository"
     }
 
-    val chats: Flow<List<ChatEntity>> = chatDao.getAllChats()
-
-    // Track recently seen message guids to prevent duplicate notifications
-    private val recentMessageGuids = LinkedHashSet<String>()
-    private val maxRecentGuids = 200
-
-    init {
-        scope.launch(Dispatchers.IO) {
-            socketManager.events.collect { event ->
-                when (event) {
-                    is SocketEvent.NewMessage -> {
-                        val chatGuid = event.message.chats?.firstOrNull()?.guid ?: return@collect
-                        val messageGuid = event.message.guid
-                        val isDuplicate = !recentMessageGuids.add(messageGuid)
-                        if (recentMessageGuids.size > maxRecentGuids) {
-                            recentMessageGuids.remove(recentMessageGuids.first())
-                        }
-                        if (isDuplicate) return@collect
-                        val isReaction = event.message.associatedMessageType != null
-                        val existing = chatDao.getChatByGuid(chatGuid)
-                        if (existing != null) {
-                            // Don't update chat preview for reactions (tapbacks)
-                            if (!isReaction) {
-                                val firstAttachment = event.message.attachments?.firstOrNull { att ->
-                                    att.hideAttachment != true && att.mimeType != null && att.guid != null
-                                }
-                                val imageAttachment = event.message.attachments?.firstOrNull { att ->
-                                    att.hideAttachment != true &&
-                                    att.mimeType != null &&
-                                    att.guid != null &&
-                                    att.mimeType.startsWith("image/")
-                                }
-                                chatDao.upsertChat(
-                                    existing.copy(
-                                        lastMessageText = event.message.text?.ifBlank { null }
-                                            ?: if (event.message.attachments?.isNotEmpty() == true) "Attachment" else null,
-                                        lastMessageDate = event.message.dateCreated,
-                                        lastMessageIsFromMe = event.message.isFromMe,
-                                        hasUnreadMessage = !event.message.isFromMe,
-                                        lastMessageAttachmentGuid = imageAttachment?.guid ?: existing.lastMessageAttachmentGuid,
-                                        lastMessageAttachmentMimeType = firstAttachment?.mimeType ?: existing.lastMessageAttachmentMimeType
-                                    )
-                                )
-                            }
-                        } else {
-                            refreshChats()
-                        }
-
-                        if (!event.message.isFromMe && !isReaction) {
-                            val address = event.message.handle?.address
-                            val senderName = if (address != null) {
-                                contactRepository.getDisplayNameSync(address)
-                            } else {
-                                "Unknown"
-                            }
-                            val messagePreview = event.message.text
-                                ?: if (event.message.attachments?.isNotEmpty() == true) "Attachment" else "New message"
-                            NotificationHelper.showNewMessageNotification(
-                                context, senderName, messagePreview, chatGuid
-                            )
-                            NotificationHelper.vibrateIfEnabled(context)
-                        }
-                    }
-                    else -> {}
-                }
-            }
-        }
-    }
+    val chats: Flow<List<ChatEntity>> = chatDao.getVisibleChats()
 
     suspend fun refreshChats() {
         try {
-            val response = api.getChats(
-                password = password,
+            val session = settings.currentSession() ?: return
+            val response = session.api.getChats(
+                password = session.password,
                 body = ChatQueryRequest(limit = 1000, offset = 0)
             )
-            val entities = response.data.map { it.toEntity() }
-            chatDao.upsertChats(entities)
+            chatDao.upsertFromServer(response.data.map { it.toEntity() })
         } catch (e: Exception) {
             Log.e(TAG, "Failed to refresh chats", e)
         }
     }
 
-    suspend fun markChatRead(chatGuid: String) {
-        try {
-            chatDao.markRead(chatGuid)
-            api.markChatRead(chatGuid, password)
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to mark chat as read", e)
-        }
+    /** Removes the chat from the list until a newer message arrives in it. */
+    suspend fun hideChat(chatGuid: String) {
+        chatDao.hideChat(chatGuid)
     }
 
     // Non-suspend: uses in-memory contact cache only — no DB round-trips
     fun getDisplayNameSync(chat: ChatEntity): String {
         if (!chat.displayName.isNullOrBlank()) return chat.displayName
-        val addresses = chat.participantAddresses?.split(",")?.map { it.trim() } ?: emptyList()
+        val addresses = chat.participantAddresses?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() }
+            ?: emptyList()
         return if (addresses.isNotEmpty()) {
             contactRepository.getDisplayNameForAddressesSync(addresses)
         } else {
             chat.chatIdentifier ?: chat.guid
         }
-    }
-
-    private fun ChatDto.toEntity(): ChatEntity {
-        val addresses = participants?.joinToString(",") { it.address } ?: ""
-        val firstAttachment = lastMessage?.attachments?.firstOrNull { att ->
-            att.hideAttachment != true && att.mimeType != null && att.guid != null
-        }
-        val imageAttachment = lastMessage?.attachments?.firstOrNull { att ->
-            att.hideAttachment != true &&
-            att.mimeType != null &&
-            att.guid != null &&
-            att.mimeType.startsWith("image/")
-        }
-        return ChatEntity(
-            guid = guid,
-            chatIdentifier = chatIdentifier,
-            displayName = displayName,
-            participantAddresses = addresses,
-            lastMessageText = lastMessage?.text?.ifBlank { null }
-                ?: if (lastMessage?.attachments?.isNotEmpty() == true) "Attachment" else null,
-            lastMessageDate = lastMessage?.dateCreated,
-            lastMessageIsFromMe = lastMessage?.isFromMe,
-            hasUnreadMessage = hasUnreadMessage ?: false,
-            lastMessageAttachmentGuid = imageAttachment?.guid,
-            lastMessageAttachmentMimeType = firstAttachment?.mimeType
-        )
     }
 }

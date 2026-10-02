@@ -35,8 +35,8 @@ WearBubbles connects to a self-hosted BlueBubbles server to let you view convers
 ### Option A: Download APKs directly (easiest)
 
 1. On your **Android phone**, download both APKs from the [latest release](https://github.com/mdunlap/WearBubbles/releases/latest):
-   - [WearBubbles-watch](https://github.com/mdunlap/WearBubbles/releases/latest/download/WearBubbles-watch-0.4.2-release.apk) — install via [Wear Installer](https://play.google.com/store/apps/details?id=org.nickas21.wearinstaller) or ADB
-   - [WearBubbles-phone](https://github.com/mdunlap/WearBubbles/releases/latest/download/WearBubbles-phone-0.4.2-release.apk) — open the file to install directly on your phone
+   - [WearBubbles-watch](https://github.com/mdunlap/WearBubbles/releases/latest/download/WearBubbles-watch-0.5.0-release.apk) — install via [Wear Installer](https://play.google.com/store/apps/details?id=org.nickas21.wearinstaller) or ADB
+   - [WearBubbles-phone](https://github.com/mdunlap/WearBubbles/releases/latest/download/WearBubbles-phone-0.5.0-release.apk) — open the file to install directly on your phone
 2. You may need to enable "Install from unknown sources" in your phone's settings
 
 ### Option B: Build from source and install via ADB

@@ -7,8 +7,12 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface ChatDao {
 
-    @Query("SELECT * FROM chats ORDER BY lastMessageDate DESC")
-    fun getAllChats(): Flow<List<ChatEntity>>
+    @Query("""
+        SELECT * FROM chats
+        WHERE hiddenBefore IS NULL OR COALESCE(lastMessageDate, 0) > hiddenBefore
+        ORDER BY lastMessageDate DESC
+    """)
+    fun getVisibleChats(): Flow<List<ChatEntity>>
 
     @Query("SELECT * FROM chats WHERE guid = :guid")
     suspend fun getChatByGuid(guid: String): ChatEntity?
@@ -22,11 +26,11 @@ interface ChatDao {
     @Query("UPDATE chats SET hasUnreadMessage = 0 WHERE guid = :guid")
     suspend fun markRead(guid: String)
 
-    @Query("DELETE FROM chats WHERE guid NOT IN (SELECT guid FROM chats ORDER BY lastMessageDate DESC LIMIT 50)")
-    suspend fun pruneOldChats()
+    @Query("UPDATE chats SET hiddenBefore = COALESCE(lastMessageDate, 0) WHERE guid = :guid")
+    suspend fun hideChat(guid: String)
 
-    @Query("DELETE FROM chats WHERE guid = :guid")
-    suspend fun deleteChat(guid: String)
+    @Query("SELECT guid, hiddenBefore FROM chats WHERE hiddenBefore IS NOT NULL")
+    suspend fun getHiddenChats(): List<HiddenChat>
 
     @Query("SELECT COUNT(*) FROM chats")
     suspend fun getChatCount(): Int
@@ -37,3 +41,8 @@ interface ChatDao {
     @Query("SELECT MAX(lastMessageDate) FROM chats")
     suspend fun getLastMessageTime(): Long?
 }
+
+data class HiddenChat(
+    val guid: String,
+    val hiddenBefore: Long
+)
